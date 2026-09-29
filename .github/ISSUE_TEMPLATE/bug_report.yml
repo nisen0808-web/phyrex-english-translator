@@ -9,7 +9,7 @@ body:
     id: environment
     attributes:
       label: 运行环境
-      description: Windows 版本、Chrome / Edge 版本、软件版本
+      description: Windows / macOS 版本、Mac 芯片（Apple / Intel）、Chrome / Edge 版本、软件版本
       placeholder: Windows 11 / Chrome / 0.2.2-beta
     validations:
       required: true
@@ -31,5 +31,5 @@ body:
       label: 使用入口
       options:
         - 浏览器侧栏
-        - 完整页面 / Start.cmd
+        - 完整页面 / Start.cmd / Start.command
         - 安装阶段

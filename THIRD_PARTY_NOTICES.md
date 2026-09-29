@@ -16,3 +16,6 @@ Codex 官方 Windows x64 组件 ZIP 的 SHA-256：
 `a18dfc0184543cd647198b6c4a2fb01598b91503e54209e04221a65a942de03c`
 
 这是独立工具的测试分发包，不代表 YouTube、Google、Microsoft、OpenAI 或美联储的官方产品或认可。
+
+
+Mac 0.2.3-mac-beta 的可移植 Python、各架构依赖和固定文件校验值见 [Mac 第三方说明](mac/app/THIRD_PARTY_NOTICES.md) 与 [下载来源清单](mac/sources.lock.json)。

@@ -1,6 +1,23 @@
-# 0.2.2 测试分发包：验证范围
+# Windows 与 Mac 测试分发包：验证范围
 
-验证日期：2026-09-29。这个包供小范围用户测试，尚未提交 Chrome/Edge 商店。
+验证日期：2026-09-29。Windows 为 0.2.2-beta，Mac 为 0.2.3-mac-beta。均为 GitHub 公开测试版，尚未提交 Chrome/Edge 商店。
+
+## Mac 验证范围
+
+Mac 版在 GitHub 的 Apple 芯片 macOS 14 和 Intel macOS 15 原生构建环境分别运行检查。每个包先验证，再压缩为保留执行权限和符号链接的 ZIP，随后解压到含空格的新路径再验证一次。
+
+- 可移植 Python 与语音依赖加载，内置 556 条术语；原生 Codex CLI 可执行。
+- 独立账号目录，首次为未登录状态，不继承发布者账号或环境中的 API 密钥。
+- 本机连接协议、命令白名单、扩展两项权限，以及隔离用户目录中的安装与卸载。
+- 同一目录服务锁、真实本机 HTTP 请求、来源与写入令牌限制、私有路径拒绝访问。
+- Whisper small 离线模型加载并识别 Mac 内置语音合成的英语句子；这不是美联储真实录音准确率测试。
+- 启动脚本语法、执行权限、拒绝错误扩展来源；解压换路径后重复检查。
+
+完整逐项结果在 [Mac 版本附件](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.2.3-mac-beta) 的 `checks.json` 中；构建记录见 [GitHub Actions](https://github.com/nisen0808-web/phyrex-english-translator/actions/workflows/build-macos.yml)。
+
+Mac 尚未经过 Apple 公证或第三方杀毒认证。浏览器 GUI 安装、Gatekeeper 授权、真实 ChatGPT 登录、实际 YouTube 音频采集和长时间直播仍需接收者试用；Windows Defender 的历史扫描不代表 Mac 包通过了同样扫描。
+
+以下为 Windows 0.2.2-beta 的检查记录。
 
 ## 已验证
 
