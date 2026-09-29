@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "PhyrexNi · 美联储英语直播译文（测试版）",
-  "version": "0.2.5",
-  "description": "英语直播与回放译成中文，美联储专业术语、逐段复制和文本导出。需首次安装本机连接组件，使用自己的 ChatGPT。",
+  "version": "0.3.0",
+  "description": "英语直播与回放译成中文，美联储术语、逐段复制、朗读和导出。需本机组件，使用自己的 ChatGPT、Grok 或 Gemini 账号。",
   "minimum_chrome_version": "116",
   "permissions": [
     "sidePanel",

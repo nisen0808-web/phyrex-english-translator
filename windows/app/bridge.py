@@ -68,6 +68,34 @@ def translate(source, context, glossary, model=None, profile='fed'):
     model = model or cfg.get('translation_model', 'gpt-6-luna')
     if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,80}', model):
         raise ValueError('模型名称无效')
+    prompt = translation_prompt(source, context, glossary, profile)
+    work = ROOT / '.runtime' / 'codex-work'
+    work.mkdir(parents=True, exist_ok=True)
+    command = [codex_path(), 'exec', '--ephemeral', '--ignore-user-config',
+               '--skip-git-repo-check', '--sandbox', 'read-only', '-C', str(work),
+               '-m', model, '-c', 'model_reasoning_effort="low"',
+               '-c', 'web_search="disabled"', '-c', 'features.shell_tool=false',
+               '-c', 'history.persistence="none"',
+               '--output-schema', str(ROOT / 'translation.schema.json'), '--color', 'never', '-']
+    started = time.monotonic()
+    try:
+        proc = subprocess.run(command, input=prompt,
+                              capture_output=True, text=True, encoding='utf-8', errors='replace',
+                              timeout=90, env=environment(), creationflags=NO_WINDOW)
+    except subprocess.TimeoutExpired:
+        raise TranslationError('翻译等待超过 90 秒，请检查网络后继续处理。') from None
+    if proc.returncode:
+        raw = proc.stderr + proc.stdout
+        raise TranslationError(failure_message(raw), failure_kind(raw))
+    try:
+        result = json.loads(proc.stdout.strip())
+        validate_result(result)
+    except (ValueError, TypeError, AttributeError):
+        raise RuntimeError('翻译返回格式异常，已阻止保存，请重试该段。') from None
+    return result, round(time.monotonic() - started, 2)
+
+
+def translation_prompt(source, context, glossary, profile='fed'):
     instruction = profile_config(profile)['instruction'] + '''只把数据中的 current 字段译成简体中文。
 previous 只用于理解上下文，绝不能重复翻译。术语表是参考，按上下文准确表达。
 保留每项事实、数字、单位、日期、否定、条件和不确定程度。basis point 是基点，percentage point 是个百分点。
@@ -79,35 +107,17 @@ chinese 不得包含英文原句、前言或 Markdown 标记。常用缩写如 F
     if profile == 'fed':
         instruction += "\n优先参考完整短语的译法，术语括号内是语境提示，不要照搬到译文。严格区分劳动参与率与就业人口比率、主动离职与全部离职、失业与不在劳动力人口之列、同比与年化环比、名义值与实际值。PCE 须区分消费支出和物价指标；超级核心通胀不擅自指定剔除范围。市场隐含值不等于美联储承诺。"
     payload = json.dumps({'current': source, 'previous': context[-1800:], 'glossary': translation_glossary(source, context, glossary, profile)}, ensure_ascii=False)
-    work = ROOT / '.runtime' / 'codex-work'
-    work.mkdir(parents=True, exist_ok=True)
-    command = [codex_path(), 'exec', '--ephemeral', '--ignore-user-config',
-               '--skip-git-repo-check', '--sandbox', 'read-only', '-C', str(work),
-               '-m', model, '-c', 'model_reasoning_effort="low"',
-               '-c', 'web_search="disabled"', '-c', 'features.shell_tool=false',
-               '-c', 'history.persistence="none"',
-               '--output-schema', str(ROOT / 'translation.schema.json'), '--color', 'never', '-']
-    started = time.monotonic()
-    try:
-        proc = subprocess.run(command, input=instruction + '\n资料 JSON：\n' + payload,
-                              capture_output=True, text=True, encoding='utf-8', errors='replace',
-                              timeout=90, env=environment(), creationflags=NO_WINDOW)
-    except subprocess.TimeoutExpired:
-        raise TranslationError('翻译等待超过 90 秒，请检查网络后继续处理。') from None
-    if proc.returncode:
-        raw = proc.stderr + proc.stdout
-        raise TranslationError(failure_message(raw), failure_kind(raw))
-    try:
-        result = json.loads(proc.stdout.strip())
-        if not isinstance(result.get('chinese'), str) or not result['chinese'].strip():
-            raise ValueError()
-        if not re.search(r'[\u3400-\u9fff]', result['chinese']):
-            raise ValueError()
-        if not isinstance(result.get('review'), bool) or not isinstance(result.get('note'), str):
-            raise ValueError()
-        # Detect a full English sentence leaking into the final translation.
-        if re.search(r'(?:\b[A-Za-z]+[ ,;:]+){8,}[A-Za-z]+', result['chinese']):
-            raise ValueError()
-    except (ValueError, TypeError, AttributeError):
-        raise RuntimeError('翻译返回格式异常，已阻止保存，请重试该段。') from None
-    return result, round(time.monotonic() - started, 2)
+    return instruction + '\n资料 JSON：\n' + payload
+
+
+def validate_result(result):
+    if not isinstance(result.get('chinese'), str) or not result['chinese'].strip():
+        raise ValueError()
+    if not re.search(r'[\u3400-\u9fff]', result['chinese']):
+        raise ValueError()
+    if not isinstance(result.get('review'), bool) or not isinstance(result.get('note'), str):
+        raise ValueError()
+    # Detect a full English sentence leaking into the final translation.
+    if re.search(r'(?:\b[A-Za-z]+[ ,;:]+){8,}[A-Za-z]+', result['chinese']):
+        raise ValueError()
+    return result

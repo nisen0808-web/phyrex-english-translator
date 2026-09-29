@@ -8,6 +8,7 @@ from pathlib import Path
 import platform
 import shutil
 import subprocess
+import sys
 import tarfile
 import time
 import urllib.request
@@ -15,6 +16,9 @@ from urllib.parse import urlparse, unquote
 
 HERE = Path(__file__).resolve().parent
 LOCK = json.loads((HERE / 'sources.lock.json').read_text(encoding='utf-8'))
+sys.path.insert(0, str(HERE.parent / 'release'))
+from ai_components import bundle
+from build_updates import build_update
 
 
 def digest(path):
@@ -124,6 +128,8 @@ def main():
     (root / 'build-info.json').write_text(json.dumps(info, indent=2), encoding='utf-8')
     shutil.copy2(HERE / 'sources.lock.json', root / 'sources.lock.json')
     report_path = output / (name + '-checks.json')
+    bundle(root, 'darwin-' + ('arm64' if args.arch == 'arm64' else 'x64'), cache / 'ai')
+    command([python, '-B', '-E', '-s', HERE.parent / 'tests/provider-checks.py', root, output / (name + '-provider-checks.json')])
     # Tests use an independent temporary home and never log into a real account.
     command([python, '-B', '-E', '-s', HERE / 'verify.py', root, report_path])
     command(['node', '--check', root / 'web/app.js'])
@@ -138,6 +144,7 @@ def main():
     relocated = relocated_parent / name
     command([relocated / '.runtime/python/bin/python3', '-B', '-E', '-s', HERE / 'verify.py', relocated, output / (name + '-relocated-checks.json')])
     archive_hash = digest(zip_path)
+    build_update(root, HERE / 'app', output, 'macOS-' + args.arch)
     (output / (name + '.zip.sha256')).write_text(archive_hash + '  ' + zip_path.name + '\n', encoding='ascii')
     print(json.dumps({'file': zip_path.name, 'bytes': zip_path.stat().st_size, 'sha256': archive_hash, 'manifest_entries': count}), flush=True)
 

@@ -1,3 +1,8 @@
+'use strict';
+let glossaryInfo=null;
+let providerSwitching=false;
+'use strict';
+const sidebarMode=new URLSearchParams(location.search).get('view')==='sidebar';if(sidebarMode){document.body.classList.add('sidebar-mode');document.documentElement.style.setProperty('--font','18px');}
 /* BEGIN PHYREX READ ALOUD */
 'use strict';
 class PhyrexChineseReader {
@@ -103,10 +108,6 @@ class PhyrexOriginalAudio {
 }
 /* END PHYREX READ ALOUD */
 
-'use strict';
-let glossaryInfo=null;
-'use strict';
-const sidebarMode=new URLSearchParams(location.search).get('view')==='sidebar';if(sidebarMode){document.body.classList.add('sidebar-mode');document.documentElement.style.setProperty('--font','18px');}
 'use strict';
 const $=id=>document.getElementById(id);
 let token='',selected='',active='',stream=null,ctx=null,processor=null;
@@ -249,7 +250,7 @@ async function startCapture(){
     const source=ctx.createMediaStreamSource(new MediaStream(stream.getAudioTracks()));source.connect(processor);processor.connect(ctx.destination);
     if(chineseReader.enabled)originalAudio.attach(ctx,source,stream);
     ctx.onstatechange=()=>{if(running&&!stopping&&ctx?.state==='suspended'){notice('音频播放被浏览器暂停，已结束采集并恢复英文。请重新开始。');stopCapture();}};
-    const result=await request('/api/start',{title:$('title').value,model:$('model').value,profile:$('profile').value});sid=result.id;
+    const result=await request('/api/start',{title:$('title').value,model:$('model').value,profile:$('profile').value,provider:$('provider').value});sid=result.id;
     selected=active=sid;chineseReader.begin(sid);running=true;if(sidebarMode)document.body.classList.add('settings-folded');seq=0;totalSamples=0;frames=[];samples=0;uploads=[];quiet=0;
     chunkSeconds=Number($('chunk').value);lastSignature='';processor.port.onmessage=e=>onFrame(e.data);
     for(const track of stream.getTracks())track.onended=()=>{if(running)stopCapture();};
@@ -272,20 +273,33 @@ async function stopCapture(){
   failedFinish=active;await pump();await finishWhenReady();
 }
 function render(state){
-  lastState=state;chineseReader.observe(state.session);updateSpeechUI();document.getElementById('sidebarStop').hidden=!sidebarMode||(!running&&!stopping);document.getElementById('sidebarStop').disabled=stopping;
+  lastState=state;document.getElementById('sidebarStop').hidden=!sidebarMode||(!running&&!stopping);document.getElementById('sidebarStop').disabled=stopping;chineseReader.observe(state.session);updateSpeechUI();
   if(state.storage_error)notice(state.storage_error);
   $('asrStatus').textContent=(state.asr.ready?'✓ ':'○ ')+state.asr.message;$('asrStatus').className=state.asr.ready?'ok':'';
   $('codexStatus').textContent=(state.codex.ready?'✓ ':'○ ')+state.codex.message;$('codexStatus').className=state.codex.ready?'ok':'';
   const login=state.login||{};
-  $('login').hidden=state.codex.ready&&!login.running;$('login').disabled=Boolean(login.running);
-  $('login').textContent=login.running?'等待官方页面登录…':'登录自己的 ChatGPT';
+  const provider=state.provider||'chatgpt', providerInfo=state.providers?.[provider];
+  if(providerInfo){
+    if(!providerSwitching)$('provider').value=provider;
+    $('providerNotice').textContent=providerInfo.notice;
+    $('providerTag').textContent='仅限英语 → 中文 · '+providerInfo.label;
+    if($('model').dataset.provider!==provider){
+      $('model').replaceChildren();for(const [value,label] of Object.entries(providerInfo.models)){const option=document.createElement('option');option.value=value;option.textContent=label;$('model').append(option);}
+      $('model').dataset.provider=provider;
+    }
+    $('loginLink').textContent='打开 '+providerInfo.label+' 官方登录页';
+  }
+  $('login').hidden=state.codex.ready&&!login.running;$('login').disabled=providerSwitching||Boolean(login.running);
+  $('login').textContent=login.running?'等待官方页面登录…':providerInfo?.login_label||'登录自己的 ChatGPT';
   $('loginMessage').hidden=!login.message;$('loginMessage').textContent=login.message||'';
-  let officialLogin='';try{const u=new URL(login.url);if(u.protocol==='https:'&&['auth.openai.com','auth.chatgpt.com','chatgpt.com'].includes(u.hostname))officialLogin=u.href;}catch(e){}
+  const loginHosts={chatgpt:['auth.openai.com','auth.chatgpt.com','chatgpt.com'],grok:['auth.x.ai','accounts.x.ai','grok.com'],gemini:['accounts.google.com']};
+  let officialLogin='';try{const u=new URL(login.url);if(login.provider===provider&&u.protocol==='https:'&&!u.username&&!u.password&&(!u.port||u.port==='443')&&loginHosts[provider].includes(u.hostname))officialLogin=u.href;}catch(e){}
   $('loginLink').hidden=!officialLogin;if(officialLogin)$('loginLink').href=officialLogin;else $('loginLink').removeAttribute('href');
   $('problemBox').hidden=!state.problem?.kind;$('problemMessage').textContent=state.problem?.message||'';
   if(state.problem?.kind&&running&&!stopping)stopCapture();
   const busy=state.sessions.some(s=>['recording','draining'].includes(s.status));
-  $('start').disabled=!state.asr.ready||!state.codex.ready||Boolean(state.problem?.kind)||busy||running||starting||stopping;
+  $('start').disabled=providerSwitching||!state.asr.ready||!state.codex.ready||Boolean(state.problem?.kind)||busy||running||starting||stopping;
+  $('provider').disabled=providerSwitching||busy||running||starting||stopping||Boolean(state.problem?.kind)||Boolean(login.running);
   $('start').textContent=running?'正在采集直播声音':stopping?'正在提交剩余音频…':busy?'正在处理当前会话…':state.asr.ready?'选择直播标签页，开始翻译':'准备运行环境…';
   for(const id of ['title','profile','model','chunk'])$(id).disabled=running||starting||stopping;
   const optionSig=state.sessions.map(s=>s.id).join(',');
@@ -353,7 +367,8 @@ async function init(){
 }
 $('start').onclick=startCapture;$('stop').onclick=stopCapture;
 $('profile').onchange=()=>{if(['美联储发布会','英语直播'].includes($('title').value))$('title').value=$('profile').value==='fed'?'美联储发布会':'英语直播';};
-$('login').onclick=async()=>{try{$('login').disabled=true;await request('/api/login');hadLogin=true;await poll();}catch(e){notice(e.message);$('login').disabled=false;}};
+$('login').onclick=async()=>{try{$('login').disabled=true;await request('/api/login',{provider:$('provider').value});hadLogin=true;await poll();}catch(e){notice(e.message);$('login').disabled=false;}};
+$('provider').onchange=async()=>{providerSwitching=true;$('login').disabled=true;$('provider').disabled=true;$('start').disabled=true;try{await request('/api/provider',{provider:$('provider').value});notice('已切换翻译 AI。请确认对应账号已登录，再开始新的一场翻译。');}catch(e){notice(e.message);}finally{providerSwitching=false;await poll();}};
 $('resume').onclick=async()=>{try{$('resume').disabled=true;await request('/api/resume',{session:selected,model:$('model').value});notice('已恢复处理，已采集内容会继续翻译。');await poll();}catch(e){notice(e.message);}finally{$('resume').disabled=false;}};
 $('history').onchange=()=>{selected=$('history').value;lastSignature='';poll();};
 $('retry').onclick=async()=>{try{if(lastState?.problem?.kind){notice('请先解决上方暂停原因，再点击“继续处理”。');return;}await request('/api/retry',{session:selected});notice('正在重试失败段落。');await poll();}catch(e){notice(e.message);}};

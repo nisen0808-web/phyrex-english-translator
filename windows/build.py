@@ -6,10 +6,14 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-VERSION = '0.2.5-beta'
+VERSION = '0.3.0-beta'
+sys.path.insert(0, str(HERE.parent / 'release'))
+from ai_components import bundle
+from build_updates import build_update
 BASE_NAME = 'Fed-English-Translator-0.2.2-beta'
 BASE_URL = 'https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.2.2-beta/Fed-English-Translator-0.2.2-beta-Windows-x64-Compact.7z'
 BASE_SHA = '24b3c081b4fb9e01a7006493429c02193f4aeb9ade939901592e2be13b775725'
@@ -72,8 +76,10 @@ def main():
         file.read_text(encoding='utf-8')
         dest = root / rel; dest.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(file, dest)
+    bundle(root, 'win32-x64', output / 'ai-cache')
     python = root / '.runtime/python/python.exe'
     name = root.name + '-Windows-x64-Compact'
+    subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE.parent / 'tests/provider-checks.py'), str(root), str(output / (name + '-provider-checks.json'))], check=True)
     subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE / 'verify.py'), str(root), str(output / (name + '-checks.json'))], check=True)
     node = shutil.which('node')
     if not node:
@@ -89,6 +95,7 @@ def main():
     manifest(extracted, verify=True)
     subprocess.run([str(extracted / '.runtime/python/python.exe'), '-B', '-X', 'utf8', str(HERE / 'verify.py'), str(extracted), str(output / (name + '-relocated-checks.json'))], check=True)
     checksum = digest(package)
+    build_update(root, HERE / 'app', output, 'Windows-x64')
     package.with_suffix('.7z.sha256').write_text(checksum + '  ' + package.name + '\n', encoding='ascii')
     print(json.dumps({'file': package.name, 'bytes': package.stat().st_size, 'sha256': checksum, 'manifest_files': count}), flush=True)
 

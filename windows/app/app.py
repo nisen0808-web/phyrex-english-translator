@@ -21,10 +21,11 @@ from xml.sax.saxutils import escape
 
 from runtime import ROOT, USER_DIR, instance_id, acquire_instance_lock, prepare
 CONFIG = prepare()
-from bridge import login_status, translate, TranslationError
+from providers import (PROVIDERS, login_status, translate, TranslationError,
+                       validate_provider, validate_model, clear_transient_history, mark_login)
 from recognizer import Recognizer
 from profiles import PROFILES, profile_config
-from auth import LoginManager
+from provider_auth import LoginManager
 
 DATA = USER_DIR / 'records'
 RATE = 16000
@@ -98,8 +99,16 @@ class Engine:
         self.problem = {}
         self.retry_delays = retry_delays
         self.login = LoginManager()
+        self.provider = 'chatgpt'
+        try:
+            self.provider = validate_provider(json.loads((USER_DIR / 'ai-choice.json').read_text(encoding='utf-8'))['provider'])
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+        self.login.select(self.provider)
+        for provider in ('grok', 'gemini'):
+            clear_transient_history(provider)
         self.asr = {'ready': False, 'message': '正在加载本地语音模型'}
-        self.codex = {'ready': False, 'message': '正在检查 ChatGPT 登录'}
+        self.codex = {'ready': False, 'message': '正在检查 ' + PROVIDERS[self.provider]['label'] + ' 登录'}
         self.glossary = json.loads(((USER_DIR / 'glossary.json') if (USER_DIR / 'glossary.json').exists() else (ROOT / 'glossary.json')).read_text(encoding='utf-8'))
         for path in self.data.glob('*.json'):
             try:
@@ -118,15 +127,37 @@ class Engine:
         threading.Thread(target=self.worker, daemon=True).start()
 
     def warm(self):
-        self.codex = login_status()
+        self.refresh_login()
         try:
             self.recognizer.load()
             self.asr = {'ready': True, 'message': '本地语音识别已就绪'}
         except Exception:
             self.asr = {'ready': False, 'message': '语音模型加载失败，请运行安装程序。'}
 
+    def refresh_login(self):
+        with self.lock:
+            provider = self.provider
+        status = login_status(provider)
+        with self.lock:
+            if provider == self.provider:
+                self.codex = status
+        return status
+
+    def select_provider(self, provider):
+        validate_provider(provider)
+        with self.lock:
+            if provider == self.provider:
+                return self.codex
+            if self.pending or self.problem or any(s['status'] in ('recording', 'draining') for s in self.sessions.values()):
+                raise ValueError('请先结束当前采集并处理完片段，再切换 AI；当前记录不会改用其他账号。')
+            self.login.select(provider)
+            write_json(USER_DIR / 'ai-choice.json', {'provider': provider})
+            self.provider = provider
+            self.codex = {'ready': False, 'message': '正在检查 ' + PROVIDERS[provider]['label'] + ' 登录'}
+        return self.refresh_login()
+
     def resume(self, sid=None, model=None):
-        status = login_status()
+        status = self.refresh_login()
         with self.lock:
             self.codex = status
             if not status['ready']:
@@ -134,8 +165,7 @@ class Engine:
             # A model unavailable to this account can be replaced for this session.
             sid = self.problem.get('session', sid)
             if model is not None:
-                if model not in ('gpt-6-luna', 'gpt-6-sol'):
-                    raise ValueError('请选择有效的翻译模型。')
+                validate_model(self.provider, model)
                 if sid:
                     self.sessions[sid]['model'] = model
             # Retry cached failures before releasing the waiting worker.
@@ -162,23 +192,26 @@ class Engine:
     def persist(self, session):
         write_json(self.data / (session['id'] + '.json'), session)
 
-    def start(self, title, model, profile='fed'):
+    def start(self, title, model, profile='fed', provider=None):
         with self.lock:
+            provider = provider or self.provider
+            validate_provider(provider)
+            if provider != self.provider:
+                raise ValueError('AI 选择已发生变化，请刷新页面后重新开始。')
             profile_config(profile)
             if self.problem:
                 raise ValueError(self.problem['message'])
             if not self.asr['ready'] or not self.codex['ready']:
-                raise ValueError('请先等待语音模型就绪，并确认 ChatGPT 已登录。')
+                raise ValueError('请先等待语音模型就绪，并确认所选 AI 已登录。')
             if any(s['status'] in ('recording', 'draining') for s in self.sessions.values()):
                 raise ValueError('已有会话正在运行，请先结束并等待处理完成。')
-            if model not in ('gpt-6-luna', 'gpt-6-sol'):
-                raise ValueError('请选择有效的翻译模型。')
+            validate_model(provider, model)
             sid = datetime.now().strftime('%Y%m%d-%H%M%S-') + secrets.token_hex(3)
             s = {'id': sid, 'title': str(title).strip()[:100] or '美联储直播翻译',
                  'created': datetime.now().astimezone().isoformat(timespec='seconds'),
                  'status': 'recording', 'model': model, 'next_seq': 0, 'received_seconds': 0,
                  'rows': [], 'glossary': dict(self.glossary) if profile == 'fed' else {},
-                 'profile': profile, 'language': 'en', 'last_seen': time.time()}
+                 'profile': profile, 'language': 'en', 'provider': provider, 'last_seen': time.time()}
             self.sessions[sid] = s
             self.persist(s)
             return sid
@@ -233,6 +266,8 @@ class Engine:
 
     def retry(self, sid):
         with self.lock:
+            if self.sessions[sid].get('provider', 'chatgpt') != self.provider:
+                raise ValueError('请先切换到这场记录原来使用的 AI，再重试。')
             items = [(key, job) for key, job in self.failed.items() if key[0] == sid]
             if not items:
                 raise ValueError('没有可重试的缓存；重启前失败的音频需要从原视频重播。')
@@ -278,7 +313,11 @@ class Engine:
                         row['status'] = 'translating'
                     for attempt in range(len(self.retry_delays) + 1):
                         try:
-                            result, elapsed = self.translator(job['source'], job['context'], s['glossary'], s['model'], s.get('profile', 'fed'))
+                            args = (job['source'], job['context'], s['glossary'], s['model'], s.get('profile', 'fed'))
+                            if s.get('provider', 'chatgpt') == 'chatgpt':
+                                result, elapsed = self.translator(*args)
+                            else:
+                                result, elapsed = self.translator(*args, provider=s['provider'])
                             break
                         except TranslationError as exc:
                             if exc.kind != 'network' or attempt == len(self.retry_delays):
@@ -300,7 +339,10 @@ class Engine:
                         self.problem = {'kind': exc.kind, 'session': sid, 'message': note + ' 已暂停处理，请解决后点击“继续处理”。'}
                         self.gate.clear()
                         if exc.kind == 'auth':
-                            self.codex = {'ready': False, 'message': 'ChatGPT 登录需要重新确认。'}
+                            provider = s.get('provider', 'chatgpt')
+                            if provider != 'chatgpt':
+                                mark_login(provider, False)
+                            self.codex = {'ready': False, 'message': PROVIDERS[provider]['label'] + ' 登录需要重新确认。'}
                     if len(self.failed) < 30:
                         self.failed[(sid, seq)] = job
                     else:
@@ -323,6 +365,7 @@ class Engine:
                 s = next(reversed(self.sessions.values()))
             # Serialization here also prevents concurrent mutation during response writes.
             result = {'asr': self.asr, 'codex': self.codex, 'session': s, 'storage_error': self.storage_error,
+                      'provider': self.provider, 'providers': PROVIDERS,
                       'login': self.login.state(), 'problem': self.problem,
                       'sessions': [{'id': x['id'], 'title': x['title'], 'created': x['created'], 'status': x['status']}
                                    for x in reversed(list(self.sessions.values()))],
@@ -375,7 +418,8 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == '/api/state':
                 return self.send(self.engine.state(args.get('session', [None])[0]))
             if parsed.path == '/api/config':
-                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.2.5-beta', 'token': self.token,
+                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.0-beta', 'token': self.token,
+                                  'providers': PROVIDERS,
                                   'language': 'en', 'glossary': self.engine.glossary,
                                   'glossary_info': json.loads((ROOT / 'glossary-info.json').read_text(encoding='utf-8')),
                                   'profiles': {key: item['label'] for key, item in PROFILES.items()}})
@@ -416,12 +460,16 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(self.engine.accept(args['session'][0], int(args['seq'][0]), float(args['start'][0]), body))
             obj = json.loads(body or b'{}')
             if parsed.path == '/api/start':
-                return self.send({'id': self.engine.start(obj.get('title', ''), obj.get('model', 'gpt-6-luna'), obj.get('profile', 'fed'))})
+                return self.send({'id': self.engine.start(obj.get('title', ''), obj.get('model', 'gpt-6-luna'), obj.get('profile', 'fed'), obj.get('provider'))})
+            if parsed.path == '/api/provider':
+                return self.send(self.engine.select_provider(obj['provider']))
             if parsed.path == '/api/heartbeat':
                 self.engine.heartbeat(obj['session'])
                 return self.send({'ok': True})
             if parsed.path == '/api/login':
-                return self.send(self.engine.login.start())
+                if obj.get('provider', self.engine.provider) != self.engine.provider:
+                    raise ValueError('请先选择需要登录的 AI。')
+                return self.send(self.engine.login.start(self.engine.provider))
             if parsed.path == '/api/resume':
                 self.engine.resume(obj.get('session'), obj.get('model'))
                 return self.send({'ok': True})
@@ -432,8 +480,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.engine.retry(obj['session'])
                 return self.send({'ok': True})
             if parsed.path == '/api/check-login':
-                self.engine.codex = login_status()
-                return self.send(self.engine.codex)
+                return self.send(self.engine.refresh_login())
             if parsed.path == '/api/glossary':
                 glossary = obj['glossary']
                 validate_glossary(glossary)
@@ -466,7 +513,7 @@ def main():
             try:
                 Handler.engine.expire_sessions()
                 if Handler.engine.login.state()['running'] or not Handler.engine.codex['ready']:
-                    Handler.engine.codex = login_status()
+                    Handler.engine.refresh_login()
             except (OSError, ValueError):
                 pass
     threading.Thread(target=maintenance, daemon=True).start()

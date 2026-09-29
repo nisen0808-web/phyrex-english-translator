@@ -67,6 +67,7 @@ jobs:
           name: release-windows
           path: |
             dist-windows/*-Compact.7z
+            dist-windows/*-Update.zip
             dist-windows/*.sha256
             dist-windows/*checks.json
           compression-level: 0
@@ -86,7 +87,6 @@ jobs:
           node --check mac/app/web/app.js
           node tests/read-aloud.cjs windows/app/web/app.js dist-updates/Windows-read-aloud-checks.json
           node tests/read-aloud.cjs mac/app/web/app.js dist-updates/Mac-read-aloud-checks.json
-          python3 release/build_updates.py
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-updates
@@ -118,11 +118,11 @@ jobs:
           set -euo pipefail
           cd artifacts
           sha256sum -c *.sha256
-          tag=v0.2.5-beta
+          tag=v0.3.0-beta
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'Release already exists; refusing to overwrite it.'
             exit 1
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 中文朗读公开测试版 0.2.5' --notes-file ../release/RELEASE.md
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 三 AI 公开测试版 0.3.0' --notes-file ../release/RELEASE.md
           gh release upload "$tag" ./*.7z ./*.zip ./*.sha256 ./*checks.json
           gh release edit "$tag" --draft=false --prerelease

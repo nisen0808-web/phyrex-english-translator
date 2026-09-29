@@ -3,18 +3,19 @@
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>@PhyrexNi · 美联储英语直播译文</title><link rel="stylesheet" href="/style.css"></head>
 <body>
 <main><div class="sidebar-tools"><span>仅限英语 → 中文</span><div><button id="sidebarStop" type="button" hidden>结束采集</button><button id="toggleSettings" type="button">设置 / 记录</button></div></div>
-  <header><div class="brand"><span class="publisher-logo" aria-label="出品方 @PhyrexNi">@PhyrexNi</span><div><h1>美联储 · 英语直播译文</h1><p>美联储优先，也听懂其他英语内容</p></div></div><span class="tag">仅限英语 → 中文 · 使用自己的 ChatGPT</span></header>
+  <header><div class="brand"><span class="publisher-logo" aria-label="出品方 @PhyrexNi">@PhyrexNi</span><div><h1>美联储 · 英语直播译文</h1><p>美联储优先，也听懂其他英语内容</p></div></div><span class="tag" id="providerTag">仅限英语 → 中文 · 使用自己的 AI 账号</span></header>
   <div class="layout">
     <aside>
       <section class="card"><div class="eyebrow">开始一场翻译</div><h2>播放英语，共享声音</h2><p class="muted">支持英语直播、回放和访谈。在 Chrome 或 Edge 播放视频，选择播放标签页并勾选“共享标签页音频”。</p>
+        <label for="provider">翻译 AI</label><select id="provider" disabled><option value="chatgpt">ChatGPT</option><option value="grok">Grok</option><option value="gemini">Google Gemini</option></select><p id="providerNotice" class="footnote" role="status">选择 AI 后，登录你自己的对应账号。</p>
         <label for="profile">内容场景 · 英语输入</label><select id="profile"><option value="fed">美联储 / 财经 · 默认</option><option value="general">通用英语 · 新闻、访谈、课程</option></select>
         <label for="title">记录名称</label><input id="title" value="美联储发布会" maxlength="100">
         <label for="model">翻译模式</label><select id="model"><option value="gpt-6-luna">快速 · 日常跟看</option><option value="gpt-6-sol">精细 · 更高额度消耗</option></select>
         <label for="chunk">最长音频分段</label><select id="chunk"><option value="12">12 秒 · 更新更频繁</option><option value="20" selected>20 秒 · 平衡延迟和额度</option><option value="30">30 秒 · 减少请求次数</option></select>
         <button id="start" class="primary" disabled>准备运行环境…</button><button id="stop" class="stop" disabled>结束采集并保存</button>
         <div class="checks"><div id="asrStatus">○ 正在检查语音模型</div><div id="codexStatus">○ 正在检查自己的 ChatGPT 登录</div></div>
-        <button id="login" class="secondary" hidden>登录自己的 ChatGPT</button><p id="loginMessage" class="footnote" role="status" hidden></p><a id="loginLink" class="link" target="_blank" rel="noopener noreferrer" hidden>打开 OpenAI 官方登录页</a><button id="checkLogin" class="link">重新检查登录</button>
-        <p class="footnote">首次使用：等待语音组件就绪 → 登录自己的 ChatGPT → 共享声音。只支持英语，声音在本机识别；翻译使用你自己的 Codex 额度。</p>
+        <button id="login" class="secondary" hidden>登录自己的 ChatGPT</button><p id="loginMessage" class="footnote" role="status" hidden></p><a id="loginLink" class="link" target="_blank" rel="noopener noreferrer" hidden>打开所选 AI 官方登录页</a><button id="checkLogin" class="link">重新检查登录</button>
+        <p class="footnote">首次使用：选择 AI → 登录对应账号 → 共享声音。英语在本机识别，识别文字仅发送给本场选定的 AI；各账号额度独立，受限时不会自动换用其他 AI。</p>
       </section>
       <section class="card"><div class="section-head"><h2>我的记录</h2><span id="sessionCount" class="muted">0</span></div><select id="history" aria-label="选择历史记录"><option value="">暂无记录</option></select><p class="footnote">每段译文完成后自动保存。关闭页面会结束采集，已提交的片段继续处理。</p></section>
       <details class="card"><summary>美联储与宏观财经术语库 <span>可编辑</span></summary><p id="glossaryInfo" class="footnote" role="status"></p><p class="footnote">涵盖货币政策、通胀、劳动力、经济增长、金融市场等。每行“英文术语 = 中文译法”，最多 1000 条，保存后用于新的美联储 / 财经会话。</p><textarea id="glossary" rows="13" aria-label="美联储与宏观财经术语库" spellcheck="false"></textarea><button id="saveGlossary" class="secondary">保存术语库</button> <button id="addBuiltinGlossary" class="secondary" type="button">补充内置术语</button></details>
@@ -40,6 +41,6 @@
       <p class="bottom-note">点击每段右上角的复制图标可单独复制中文，标记“待核实”的段落也可复制；复制内容不含时间戳和待核实说明。字幕时间从本次采集开始计算。</p>
     </div>
   </div>
-  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.2.3 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
+  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.3.0 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
 </main><script src="/app.js" defer></script>
 </body></html>

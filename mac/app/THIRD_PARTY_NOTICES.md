@@ -20,3 +20,6 @@ Codex 官方 Mac 组件包的来源和 SHA-256 记录在 `sources.lock.json` 的
 Mac 版使用 Astral python-build-standalone 提供的 CPython 3.12.14 可移植运行环境；保留其包内许可文件。官方项目：https://github.com/astral-sh/python-build-standalone 。
 
 各芯片版本的 Python、Codex、Whisper 模型和 Python wheel 下载来源、版本与 SHA-256 固定在 `sources.lock.json`；以该清单及包内各组件许可为准。Intel 版使用仍提供对应 Mac wheel 的 ONNX Runtime 1.23.2，Apple 芯片版使用 1.30.0。
+
+
+0.3.0 新增官方组件：Grok Build 1.0.44（Apache-2.0，.runtime/ai/grok/THIRD_PARTY_NOTICES.md）、Gemini CLI 0.61.0（Apache-2.0，.runtime/ai/gemini/LICENSE）、Node.js 24.21.0（.runtime/ai/node/LICENSE）。固定来源和校验值见 .runtime/ai/sources.lock.json。

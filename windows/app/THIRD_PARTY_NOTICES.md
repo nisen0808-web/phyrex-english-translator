@@ -16,3 +16,6 @@ Codex 官方 Windows x64 组件 ZIP 的 SHA-256：
 `a18dfc0184543cd647198b6c4a2fb01598b91503e54209e04221a65a942de03c`
 
 这是独立工具的测试分发包，不代表 YouTube、Google、Microsoft、OpenAI 或美联储的官方产品或认可。
+
+
+0.3.0 新增官方组件：Grok Build 1.0.44（Apache-2.0，.runtime/ai/grok/THIRD_PARTY_NOTICES.md）、Gemini CLI 0.61.0（Apache-2.0，.runtime/ai/gemini/LICENSE）、Node.js 24.21.0（.runtime/ai/node/LICENSE）。固定来源和校验值见 .runtime/ai/sources.lock.json。
