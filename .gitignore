@@ -1,0 +1,9 @@
+user-data/
+data/
+.runtime/
+auth.json
+runtime.local.json
+*.log
+*.7z
+*.zip
+__pycache__/

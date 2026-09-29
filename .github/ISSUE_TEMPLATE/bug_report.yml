@@ -1,0 +1,35 @@
+name: 测试反馈
+description: 反馈安装、连接、识别、翻译或导出问题
+title: "[测试反馈] "
+body:
+  - type: markdown
+    attributes:
+      value: "这是公开反馈区。请勿附带登录凭据、Cookie、API 密钥、整个 user-data 文件夹或私人内容。"
+  - type: input
+    id: environment
+    attributes:
+      label: 运行环境
+      description: Windows 版本、Chrome / Edge 版本、软件版本
+      placeholder: Windows 11 / Chrome / 0.2.2-beta
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 如何复现
+      description: 做了什么、预期是什么、实际发生了什么
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: 错误文字或截图
+      description: 如涉及私人内容，请先遮盖；可选提供公开视频链接和时间位置。
+  - type: dropdown
+    id: surface
+    attributes:
+      label: 使用入口
+      options:
+        - 浏览器侧栏
+        - 完整页面 / Start.cmd
+        - 安装阶段
