@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "PhyrexNi · 美联储英语直播译文（测试版）",
+  "version": "0.2.3",
+  "description": "英语直播与回放译成中文，美联储专业术语、逐段复制和文本导出。需首次安装本机连接组件，使用自己的 ChatGPT。",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "sidePanel",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "@PhyrexNi · 打开英语直播译文"
+  },
+  "side_panel": {
+    "default_path": "panel.html"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; frame-src http://127.0.0.1:8878;"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr87t+I1aJY+UnwwnXxHxoMAydlwMK69mSpcZnERkNKDweeb4xLouY5c2ix4GVDiik2dWogijyJV4SJVOjvKvUUVCR8UiYcwGb+cLOMYv1W3sKiy0dlqmOWcZQVhRoTXfI4DhpRuCuUcEnPT8VhPkYf+FG4Gj8iegrBFHiW8m+/kEGejrqfGXVf4Trme3cHmuqc09QtZ4kqhWbwbNI2nAFboOK+AV5TPi5sS/oEL2LHPsQGdAVc485ovaFVt7GOo9mSTUX3DdA6/B+X4VK55ZWtxmGbmKU/RLDfLeysVFiVzhGsEerlR8Gf+v67ZNqSfdIEEZMfYxf1vXmIeOr7oQtQIDAQAB"
+}

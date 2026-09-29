@@ -1,0 +1,4 @@
+#!/bin/bash
+set -euo pipefail
+APP_ROOT="$(cd -- "$(dirname -- "$0")" && pwd)"
+"$APP_ROOT/.runtime/python/bin/python3" -B -E -s -X utf8 "$APP_ROOT/mac_launcher.py" uninstall

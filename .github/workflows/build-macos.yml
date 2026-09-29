@@ -1,0 +1,77 @@
+name: Build and verify Mac beta
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'mac/**'
+      - '.github/workflows/build-macos.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mac-beta-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-14
+          - arch: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Build, test and test extracted portable package
+        run: python3 mac/build.py --arch '${{ matrix.arch }}' --output dist
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: mac-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/*.sha256
+            dist/*checks.json
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: mac-*
+          path: artifacts
+          merge-multiple: true
+      - name: Publish tested Mac prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd artifacts
+          sha256sum -c *.sha256
+          if ! gh release view v0.2.3-mac-beta >/dev/null 2>&1; then
+            gh release create v0.2.3-mac-beta --target "$GITHUB_SHA" --prerelease --title '@PhyrexNi · 英语直播译文 Mac 公开测试版' --notes-file ../mac/RELEASE.md
+          fi
+          gh release upload v0.2.3-mac-beta ./*.zip ./*.sha256 ./*checks.json --clobber
