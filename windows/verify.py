@@ -17,7 +17,7 @@ report = Path(sys.argv[2]).resolve()
 checks = []
 
 with tempfile.TemporaryDirectory(prefix='phyrex-windows-check-') as temporary:
-    profile = Path(temporary) / 'user-data'
+    profile = (Path(temporary) / 'user-data').resolve()
     os.environ['FED_TRANSLATOR_USER_DIR'] = str(profile)
     sys.path.insert(0, str(root))
     import runtime
@@ -35,7 +35,7 @@ with tempfile.TemporaryDirectory(prefix='phyrex-windows-check-') as temporary:
     assert '0.158.0' in output
     with patch.dict(os.environ, {'CODEX_HOME': 'publisher-account', 'OPENAI_API_KEY': 'test-placeholder', 'CODEX_API_KEY': 'test-placeholder'}):
         env = bridge.environment()
-        assert env['CODEX_HOME'] == str(profile / 'account')
+        assert Path(env['CODEX_HOME']).resolve() == (profile / 'account').resolve()
         assert 'OPENAI_API_KEY' not in env and 'CODEX_API_KEY' not in env
         assert not bridge.login_status()['ready']
     checks.append('native Codex runs; clean account ignores inherited credentials')
