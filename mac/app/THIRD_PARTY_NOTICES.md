@@ -4,7 +4,7 @@
 
 | 组件 | 来源与许可文件 |
 | --- | --- |
-| Python 3.12 | https://www.python.org/ · `licenses/Python-LICENSE.txt` 和 `.runtime/python/LICENSE.txt` |
+| Python 3.12 | https://www.python.org/ · `licenses/Python-LICENSE.txt` 及 `.runtime/python` 内保留的许可文件 |
 | OpenAI Codex CLI 0.158.0 | https://github.com/openai/codex/releases/tag/rust-v0.158.0 · `licenses/Codex-LICENSE.txt`、`licenses/Codex-NOTICE.txt` |
 | faster-whisper | https://github.com/SYSTRAN/faster-whisper · `.runtime/packages/faster_whisper-*.dist-info` |
 | Whisper small 模型 | https://huggingface.co/Systran/faster-whisper-small · 转换自 https://github.com/openai/whisper · `licenses/Whisper-LICENSE.txt` |
@@ -12,8 +12,7 @@
 
 依赖的确切版本和文件摘要记录在 `manifest.sha256.json`。
 
-Codex 官方 Windows x64 组件 ZIP 的 SHA-256：
-`a18dfc0184543cd647198b6c4a2fb01598b91503e54209e04221a65a942de03c`
+Codex 官方 Mac 组件包的来源和 SHA-256 记录在 `sources.lock.json` 的对应芯片条目中。
 
 这是独立工具的测试分发包，不代表 YouTube、Google、Microsoft、OpenAI 或美联储的官方产品或认可。
 # Mac 包补充说明

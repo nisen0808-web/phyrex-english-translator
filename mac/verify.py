@@ -27,7 +27,7 @@ def passed(name):
 
 
 with tempfile.TemporaryDirectory(prefix='phyrex-mac-check-') as scratch:
-    temporary = Path(scratch)
+    temporary = Path(scratch).resolve()
     os.environ['FED_TRANSLATOR_USER_DIR'] = str(temporary / 'user-data')
     sys.path.insert(0, str(root))
     import runtime
@@ -42,6 +42,8 @@ with tempfile.TemporaryDirectory(prefix='phyrex-mac-check-') as scratch:
     import av
 
     assert Path(runtime.python_path()).is_file()
+    assert Path(sys.prefix).resolve().is_relative_to(root / '.runtime/python'), sys.prefix
+    results['portable_python_version'] = platform.python_version()
     assert len(json.loads((root / 'glossary.json').read_text(encoding='utf-8'))) == 556
     passed('portable Python and speech dependencies load; 556 glossary entries')
     version = subprocess.run([runtime.codex_path(), '--version'], capture_output=True, text=True, check=True).stdout.strip()
