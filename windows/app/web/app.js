@@ -1,3 +1,7 @@
+'use strict';
+let glossaryInfo=null;
+'use strict';
+const sidebarMode=new URLSearchParams(location.search).get('view')==='sidebar';if(sidebarMode){document.body.classList.add('sidebar-mode');document.documentElement.style.setProperty('--font','18px');}
 /* BEGIN PHYREX READ ALOUD */
 'use strict';
 class PhyrexChineseReader {
@@ -103,10 +107,6 @@ class PhyrexOriginalAudio {
 }
 /* END PHYREX READ ALOUD */
 
-'use strict';
-let glossaryInfo=null;
-'use strict';
-const sidebarMode=new URLSearchParams(location.search).get('view')==='sidebar';if(sidebarMode){document.body.classList.add('sidebar-mode');document.documentElement.style.setProperty('--font','18px');}
 'use strict';
 const $=id=>document.getElementById(id);
 let token='',selected='',active='',stream=null,ctx=null,processor=null;
@@ -250,7 +250,7 @@ async function startCapture(){
     if(chineseReader.enabled)originalAudio.attach(ctx,source,stream);
     ctx.onstatechange=()=>{if(running&&!stopping&&ctx?.state==='suspended'){notice('音频播放被浏览器暂停，已结束采集并恢复英文。请重新开始。');stopCapture();}};
     const result=await request('/api/start',{title:$('title').value,model:$('model').value,profile:$('profile').value});sid=result.id;
-    selected=active=sid;chineseReader.begin(sid);running=true;if(sidebarMode)document.body.classList.add('settings-folded');seq=0;totalSamples=0;frames=[];samples=0;uploads=[];quiet=0;
+    selected=active=sid;chineseReader.begin(sid);running=true;seq=0;totalSamples=0;frames=[];samples=0;uploads=[];quiet=0;
     chunkSeconds=Number($('chunk').value);lastSignature='';processor.port.onmessage=e=>onFrame(e.data);
     for(const track of stream.getTracks())track.onended=()=>{if(running)stopCapture();};
     $('stop').disabled=false;notice('已开始采集。第一段中文将在音频分段和翻译完成后出现。');
@@ -272,7 +272,7 @@ async function stopCapture(){
   failedFinish=active;await pump();await finishWhenReady();
 }
 function render(state){
-  lastState=state;chineseReader.observe(state.session);updateSpeechUI();document.getElementById('sidebarStop').hidden=!sidebarMode||(!running&&!stopping);document.getElementById('sidebarStop').disabled=stopping;
+  lastState=state;document.getElementById('sidebarStop').hidden=!sidebarMode||(!running&&!stopping);document.getElementById('sidebarStop').disabled=stopping;chineseReader.observe(state.session);updateSpeechUI();
   if(state.storage_error)notice(state.storage_error);
   $('asrStatus').textContent=(state.asr.ready?'✓ ':'○ ')+state.asr.message;$('asrStatus').className=state.asr.ready?'ok':'';
   $('codexStatus').textContent=(state.codex.ready?'✓ ':'○ ')+state.codex.message;$('codexStatus').className=state.codex.ready?'ok':'';

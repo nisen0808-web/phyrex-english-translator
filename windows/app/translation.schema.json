@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "chinese": {"type": "string"},
+    "review": {"type": "boolean"},
+    "note": {"type": "string"}
+  },
+  "required": ["chinese", "review", "note"],
+  "additionalProperties": false
+}

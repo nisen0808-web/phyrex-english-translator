@@ -18,7 +18,7 @@ report_path = Path(sys.argv[2]).resolve()
 results = {'platform': platform.platform(), 'architecture': platform.machine(), 'checks': [],
            'not_tested': ['Chrome/Edge GUI extension installation', 'Gatekeeper approval and Apple notarization',
                           'real account login and paid quota', 'real YouTube audio capture and long livestream',
-                          'Mac antivirus certification']}
+                          'Mac antivirus certification', 'physical Chinese voice output and live audio ducking']}
 
 
 def passed(name):
@@ -112,10 +112,13 @@ with tempfile.TemporaryDirectory(prefix='phyrex-mac-check-') as scratch:
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(url + '/api/config') as response:
-            assert json.load(response)['version'] == '0.2.3-mac-beta'
+            assert json.load(response)['version'] == '0.2.5-beta'
         with opener.open(url + '/') as response:
-            assert b'@PhyrexNi' in response.read()
+            page = response.read().decode('utf-8')
+            assert '@PhyrexNi' in page and 'readAloud' in page and '中文朗读' in page
             assert 'chrome-extension://' in response.headers['Content-Security-Policy']
+        with opener.open(url + '/app.js') as response:
+            assert b'PhyrexChineseReader' in response.read()
         cases = [('/api/config', {'Host': 'attacker.example'}, None, 403),
                  ('/api/config', {'Origin': 'https://attacker.example'}, None, 403),
                  ('/api/start', {}, b'{}', 403),

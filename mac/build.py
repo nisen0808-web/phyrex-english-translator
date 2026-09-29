@@ -126,6 +126,8 @@ def main():
     report_path = output / (name + '-checks.json')
     # Tests use an independent temporary home and never log into a real account.
     command([python, '-B', '-E', '-s', HERE / 'verify.py', root, report_path])
+    command(['node', '--check', root / 'web/app.js'])
+    command(['node', HERE.parent / 'tests/read-aloud.cjs', root / 'web/app.js', output / (name + '-read-aloud-checks.json')])
     count = manifest(root)
     zip_path = output / (name + '.zip')
     command(['/usr/bin/ditto', '-c', '-k', '--keepParent', root, zip_path])

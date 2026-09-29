@@ -7,3 +7,5 @@ runtime.local.json
 *.7z
 *.zip
 __pycache__/
+
+dist*/

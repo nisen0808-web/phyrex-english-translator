@@ -31,3 +31,6 @@ macOS 14 或更新版本，Chrome / Edge。下载 Apple 芯片版（M 系列，a
 这是完整运行包，不需要另装 Python、Homebrew 或购买 API。没有自动更新、开机自启或系统防护绕过操作。
 
 测试反馈：https://github.com/nisen0808-web/phyrex-english-translator/issues
+
+中文朗读
+开始采集前，勾选“中文朗读 · 朗读时屏蔽英文”，选择本机中文声音并试听。保持 YouTube 音量开启、共享标签页音频；中文朗读时屏蔽英文外放，读完恢复。没有本机中文声音时，文字翻译仍可使用。详见“中文朗读说明.md”。
