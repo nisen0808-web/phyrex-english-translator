@@ -26,7 +26,9 @@ def manifest(root, verify=False):
         if not file.is_file() or file.name == 'manifest.sha256.json':
             continue
         rel = file.relative_to(root)
-        if file.is_symlink() or any(p in {'user-data', 'data', '.codex', '__pycache__'} for p in rel.parts) or file.name in {'auth.json', 'runtime.local.json', 'server.pid', 'service.log', 'service-error.log'}:
+        # Third-party packages legitimately contain tests/data fixtures.
+        # The application's private records directory is the top-level data folder.
+        if file.is_symlink() or rel.parts[0] == 'data' or any(p in {'user-data', '.codex', '__pycache__'} for p in rel.parts) or file.name in {'auth.json', 'runtime.local.json', 'server.pid', 'service.log', 'service-error.log'}:
             raise RuntimeError('Unexpected private or generated file: ' + str(rel))
         records.append({'path': rel.as_posix(), 'bytes': file.stat().st_size, 'sha256': digest(file)})
     target = root / 'manifest.sha256.json'
