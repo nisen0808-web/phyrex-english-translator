@@ -19,3 +19,6 @@ Codex 官方 Windows x64 组件 ZIP 的 SHA-256：
 
 
 Mac 0.2.3-mac-beta 的可移植 Python、各架构依赖和固定文件校验值见 [Mac 第三方说明](mac/app/THIRD_PARTY_NOTICES.md) 与 [下载来源清单](mac/sources.lock.json)。
+
+
+0.3.0 新增 Grok Build 1.0.44、Gemini CLI 0.61.0（均 Apache-2.0）及 Node.js 24.21.0。固定来源和完整校验值见 [AI 组件清单](release/ai-sources.lock.json)，许可和第三方声明保留在完整包 .runtime/ai 中。
