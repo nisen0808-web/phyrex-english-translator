@@ -42,3 +42,7 @@ body.sidebar-mode main{padding:0 8px;max-width:none}
 header .brand{flex-wrap:wrap;gap:14px 18px}
 header{gap:18px}
 @media(max-width:720px){.publisher-logo{min-height:46px;padding:10px 14px;font-size:23px}header .brand{gap:12px}}
+
+.latency-status{font-size:12px;line-height:1.7;color:#586d60;margin:-7px 3px 18px}.sidebar-mode .latency-status{font-size:11px;margin:5px 3px 12px}
+
+.stream-label{font-size:12px;color:#557368;margin-top:7px}.row.pending:has(.stream-label)>p{color:#294a3c}

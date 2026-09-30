@@ -68,7 +68,7 @@ class Providers(unittest.TestCase):
     def test_chatgpt_route_is_preserved(self):
         with patch.object(p.bridge, 'translate', return_value=({'chinese':'利率不变。'}, 1)) as translate:
             p.translate('rates', '', {}, 'gpt-6-luna')
-            translate.assert_called_once_with('rates', '', {}, 'gpt-6-luna', 'fed')
+            translate.assert_called_once_with('rates', '', {}, 'gpt-6-luna', 'fed', on_partial=None, session_id=None)
 
     def test_foreign_routes_share_financial_prompt_and_have_no_fallback(self):
         translated = {'chinese':'政策利率保持不变。', 'review':True, 'note':'请核对数字。'}

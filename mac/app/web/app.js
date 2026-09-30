@@ -37,7 +37,7 @@ class PhyrexChineseReader {
   observe(session) {
     if(!this.enabled||!this.session||session?.id!==this.session) return;
     for(const row of [...session.rows].sort((a,b)=>a.seq-b.seq)) {
-      if(['queued','recognizing','translating'].includes(row.status)) break;
+      if(['queued','recognizing','waiting_translation','translating'].includes(row.status)) break;
       if(row.status!=='done'||!row.text?.trim()||this.seen.has(row.seq)) continue;
       this.seen.add(row.seq);
       if(this.paused) continue;
@@ -112,7 +112,7 @@ class PhyrexOriginalAudio {
 const $=id=>document.getElementById(id);
 let token='',selected='',active='',stream=null,ctx=null,processor=null;
 let running=false,starting=false,stopping=false,uploading=false,frames=[],samples=0,quiet=0,seq=0,totalSamples=0,uploads=[];
-let failedFinish='',lastSignature='',renderedSid='',fontSize=sidebarMode?18:22,chunkSeconds=20,pollBusy=false,lastState=null;
+let failedFinish='',lastSignature='',renderedSid='',fontSize=sidebarMode?18:22,chunkSeconds=0,pollBusy=false,lastState=null;
 let lastHeartbeat=0,lastLoginPoll=0,hadLogin=false;
 /* BEGIN PHYREX READ ALOUD UI */
 const originalAudio=new PhyrexOriginalAudio();
@@ -203,7 +203,14 @@ function onFrame(buffer){
   const frame=new Int16Array(buffer);frames.push(frame);samples+=frame.length;
   let power=0;for(const x of frame)power+=x*x;
   quiet=Math.sqrt(power/frame.length)<200?quiet+frame.length:0;
-  if(samples>=chunkSeconds*16000||(samples>=6*16000&&quiet>=9600))flush();
+  // Recognition plus translation can run together without a queue.
+  const stages=lastState?.latency;
+  const waiting=stages?stages.queued>0:(lastState?.pending||0)>1;
+  const busy=uploads.length>0||waiting;
+  const earlySeconds=busy?6:3;
+  const measured=Number(stages?.recommended_chunk_seconds)||4;
+  const autoMax=busy?8:Math.min(8,Math.max(4,measured));
+  if(samples>=(chunkSeconds||autoMax)*16000||(samples>=earlySeconds*16000&&quiet>=9600))flush();
   $('duration').textContent=clock((totalSamples+samples)/16000);
 }
 function flush(){
@@ -272,6 +279,48 @@ async function stopCapture(){
   if(ctx)await ctx.close().catch(()=>{});stream=null;ctx=null;processor=null;
   failedFinish=active;await pump();await finishWhenReady();
 }
+// Shared implementation inserted into each app.js by apply_overhead_ui.py.
+const renderedRows = new Map();
+function renderTranscript(s){
+  const pane=$('transcript'),oldTop=pane.scrollTop,visible=new Set();let changed=false;
+  for(const row of s.rows){
+    if(row.status==='silent')continue;
+    visible.add(row.seq);
+    const signature=JSON.stringify([row.start,row.end,row.status,row.text,row.preview,row.note,row.review]);
+    let cached=renderedRows.get(row.seq);
+    if(cached?.signature===signature)continue;
+    changed=true;
+    if(!cached){
+      if(!renderedRows.size)pane.replaceChildren();
+      const el=document.createElement('article'),header=document.createElement('div'),time=document.createElement('time'),p=document.createElement('p');
+      header.className='row-header';header.append(time);el.append(header,p);pane.append(el);
+      cached={el,header,time,p,copy:null,label:null,note:null};renderedRows.set(row.seq,cached);
+    }
+    cached.signature=signature;
+    cached.el.className='row '+(['queued','recognizing','waiting_translation','translating'].includes(row.status)?'pending':row.status==='failed'?'failed':'');
+    cached.time.textContent=clock(row.start)+' — '+clock(row.end);
+    if(canCopy(row)&&!cached.copy){
+      const copy=document.createElement('button');copy.type='button';copy.className='row-copy';showCopyIcon(copy);
+      copy.setAttribute('aria-label','复制 '+clock(row.start)+' 这一段译文');
+      copy.onclick=()=>copyTranslation(s.id,row.seq,copy);cached.header.append(copy);cached.copy=copy;
+    }else if(!canCopy(row)&&cached.copy){cached.copy.remove();cached.copy=null;}
+    cached.p.textContent=row.text||row.preview||({queued:'等待处理…',recognizing:'正在识别这一段声音…',waiting_translation:'已识别，等待翻译…',translating:'正在翻译这一段内容…'}[row.status]||'');
+    if(row.preview&&row.status==='translating'){
+      if(!cached.label){cached.label=document.createElement('div');cached.label.className='stream-label';cached.label.textContent='正在生成 · 完成后可复制、朗读与导出';cached.el.append(cached.label);}
+    }else if(cached.label){cached.label.remove();cached.label=null;}
+    if(needsReview(row)){
+      if(!cached.note){cached.note=document.createElement('div');cached.note.className='note';cached.el.append(cached.note);}
+      cached.note.textContent='待核实 · '+(row.note||'这一段内容需要复核。');
+    }else if(cached.note){cached.note.remove();cached.note=null;}
+  }
+  for(const [seq,cached] of renderedRows){if(!visible.has(seq)){cached.el.remove();renderedRows.delete(seq);changed=true;}}
+  if(s.rows.length&&!visible.size&&!pane.querySelector('.muted')){
+    const p=document.createElement('p');p.className='muted';p.textContent='暂未识别到讲话，请确认视频正在播放且共享了声音。';pane.replaceChildren(p);changed=true;
+  }
+  if(changed){if($('autoScroll').checked)pane.scrollTop=pane.scrollHeight;else pane.scrollTop=oldTop;}
+}
+
+
 function render(state){
   lastState=state;document.getElementById('sidebarStop').hidden=!sidebarMode||(!running&&!stopping);document.getElementById('sidebarStop').disabled=stopping;chineseReader.observe(state.session);updateSpeechUI();
   if(state.storage_error)notice(state.storage_error);
@@ -314,63 +363,102 @@ function render(state){
   $('stop').textContent=running?'结束采集并保存':'结束上次采集会话';
   selected=s.id;$('history').value=selected;$('recordTitle').textContent=s.title;
   if(renderedSid!==s.id){
-    renderedSid=s.id;lastSignature='';const placeholder=document.createElement('div');placeholder.className='empty';
+    renderedSid=s.id;lastSignature='';renderedRows.clear();const placeholder=document.createElement('div');placeholder.className='empty';
     const h=document.createElement('h3');h.textContent='正在等待第一段中文';const p=document.createElement('p');p.textContent='音频分段完成后会自动识别、翻译并保存。';placeholder.append(h,p);$('transcript').replaceChildren(placeholder);
   }
   $('duration').textContent=clock(running&&active===s.id?(totalSamples+samples)/16000:s.received_seconds);
   const localSeconds=uploads.filter(x=>x.sid===s.id).reduce((a,x)=>a+x.buffer.byteLength/32000,0);
+  renderLatency(state,localSeconds);
   $('backlog').textContent=Math.round((state.backlog_seconds||0)+localSeconds)+' 秒';
   $('count').textContent=s.rows.filter(r=>r.status==='done').length+' 段';
   const statusNames={recording:'采集中',draining:'正在完成译文',finished:'已保存',interrupted:'上次采集中断'};
   $('liveState').textContent=statusNames[s.status]||s.status;$('liveState').className='badge '+(['recording','draining'].includes(s.status)?'active':'');
   $('retry').hidden=!state.retryable;
   document.querySelectorAll('[data-format]').forEach(b=>b.disabled=!s.rows.length);
-  const signature=JSON.stringify(s.rows.map(r=>[r.seq,r.status,r.text,r.note,r.review]));
-  if(signature!==lastSignature&&s.rows.length){
-    const pane=$('transcript'),oldTop=pane.scrollTop;pane.replaceChildren();
-    for(const row of s.rows){
-      if(row.status==='silent')continue;
-      const el=document.createElement('article');el.className='row '+(['queued','recognizing','translating'].includes(row.status)?'pending':row.status==='failed'?'failed':'');
-      const rowHeader=document.createElement('div');rowHeader.className='row-header';
-      const time=document.createElement('time');time.textContent=clock(row.start)+' — '+clock(row.end);rowHeader.append(time);
-      if(canCopy(row)){
-        const copy=document.createElement('button');copy.type='button';copy.className='row-copy';showCopyIcon(copy);
-        copy.setAttribute('aria-label','复制 '+clock(row.start)+' 这一段译文');
-        copy.onclick=()=>copyTranslation(s.id,row.seq,copy);rowHeader.append(copy);
-      }
-      el.append(rowHeader);
-      const p=document.createElement('p');p.textContent=row.text||({queued:'等待处理…',recognizing:'正在识别这一段声音…',translating:'正在翻译这一段内容…'}[row.status]||'');el.append(p);
-      if(needsReview(row)){const note=document.createElement('div');note.className='note';note.textContent='待核实 · '+(row.note||'这一段内容需要复核。');el.append(note);}
-      pane.append(el);
-    }
-    if(!pane.children.length){const p=document.createElement('p');p.className='muted';p.textContent='暂未识别到讲话，请确认视频正在播放且共享了声音。';pane.append(p);}
-    if($('autoScroll').checked)pane.scrollTop=pane.scrollHeight;else pane.scrollTop=oldTop;
-    lastSignature=signature;
-  }
+  renderTranscript(s);
 }
+// A reconnect always starts with a fresh snapshot. Polling remains a fallback
+// for older components and browsers; it never competes with a healthy stream.
+let eventSource=null,eventSession='',eventGeneration=0,connectionEpoch=0;
+let streamConnected=false,eventState=null,appliedRevision=-1;
+function acceptState(state){
+  if(Number.isFinite(state.revision)&&state.revision<appliedRevision)return;
+  if(Number.isFinite(state.revision))appliedRevision=state.revision;
+  render(state);$('connection').hidden=true;
+  if(hadLogin&&!state.login?.running&&Date.now()-lastLoginPoll>5000){
+    hadLogin=false;lastLoginPoll=Date.now();request('/api/check-login').catch(()=>{});
+  }
+  hadLogin=Boolean(state.login?.running)||hadLogin;
+}
+function ensureEventStream(){
+  if(typeof EventSource==='undefined')return;
+  if(eventSource&&eventSession===selected)return;
+  eventSource?.close();streamConnected=false;eventState=null;appliedRevision=-1;
+  eventSession=selected;const generation=++eventGeneration;
+  const source=new EventSource('/api/events'+(selected?'?session='+encodeURIComponent(selected):''));eventSource=source;
+  source.onopen=()=>{
+    if(generation!==eventGeneration)return;
+    connectionEpoch++;streamConnected=true;eventState=null;appliedRevision=-1;
+    // A restarted local service issues a new request token. Keep editable UI
+    // settings intact while refreshing only the token used for local actions.
+    fetch('/api/config',{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw new Error();return r.json();}).then(cfg=>{if(generation===eventGeneration)token=cfg.token;}).catch(()=>{});
+  };
+  source.addEventListener('snapshot',event=>{
+    if(generation!==eventGeneration)return;
+    try{eventState=JSON.parse(event.data);acceptState(eventState);ensureEventStream();}catch(e){restartEventStream();}
+  });
+  source.addEventListener('update',event=>{
+    if(generation!==eventGeneration)return;
+    try{
+      const update=JSON.parse(event.data);
+      if(!eventState||update.state.session?.id!==eventState.session?.id)throw new Error();
+      const rows=new Map((eventState.session?.rows||[]).map(row=>[row.seq,row]));
+      for(const seq of update.removed)rows.delete(seq);
+      for(const row of update.rows)rows.set(row.seq,row);
+      eventState=update.state;
+      if(eventState.session)eventState.session.rows=Array.from(rows.values()).sort((a,b)=>a.seq-b.seq);
+      acceptState(eventState);
+    }catch(e){restartEventStream();}
+  });
+  source.onerror=()=>{if(generation===eventGeneration){streamConnected=false;poll();}};
+}
+function restartEventStream(){eventSource?.close();eventSource=null;eventGeneration++;streamConnected=false;ensureEventStream();}
+window.addEventListener('pagehide',()=>{eventSource?.close();eventSource=null;eventGeneration++;streamConnected=false;});
+window.addEventListener('pageshow',event=>{if(event.persisted)ensureEventStream();});
 async function poll(){
   if(pollBusy)return;pollBusy=true;
+  const generation=eventGeneration,epoch=connectionEpoch,session=selected;
   try{
-    const response=await fetch('/api/state'+(selected?'?session='+encodeURIComponent(selected):''),{signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error();
-    const state=await response.json();render(state);$('connection').hidden=true;
-    if(active&&running&&Date.now()-lastHeartbeat>10000){lastHeartbeat=Date.now();await request('/api/heartbeat',{session:active});}
-    if(hadLogin&&!state.login?.running&&Date.now()-lastLoginPoll>5000){hadLogin=false;lastLoginPoll=Date.now();await request('/api/check-login');}
-    hadLogin=Boolean(state.login?.running)||hadLogin;
+    const response=await fetch('/api/state'+(session?'?session='+encodeURIComponent(session):''),{signal:AbortSignal.timeout(5000)});if(!response.ok)throw new Error();
+    const state=await response.json();
+    if(generation!==eventGeneration||epoch!==connectionEpoch||session!==selected)return;
+    acceptState(state);ensureEventStream();
   }
-  catch(e){$('connection').textContent='本地服务连接中断，正在自动重连。请保持页面打开；如服务已关闭，请运行“启动翻译”。';$('connection').hidden=false;}
+  catch(e){if(!streamConnected){$('connection').textContent='本地服务连接中断，正在自动重连。请保持页面打开；如服务已关闭，请运行“启动翻译”。';$('connection').hidden=false;}}
   finally{pollBusy=false;}
 }
+function maintainLivePage(){
+  if(!streamConnected)poll();
+  if(active&&running&&Date.now()-lastHeartbeat>10000){lastHeartbeat=Date.now();request('/api/heartbeat',{session:active}).catch(()=>{});}
+  finishWhenReady();
+  if(lastState){
+    const s=lastState.session;
+    if(s&&running&&active===s.id)$('duration').textContent=clock((totalSamples+samples)/16000);
+    renderLatency(lastState,uploads.filter(x=>x.sid===s?.id).reduce((a,x)=>a+x.buffer.byteLength/32000,0));
+  }
+}
+
 async function init(){
   try{const cfg=await(await fetch('/api/config')).json();token=cfg.token;glossaryInfo=cfg.glossary_info;$('glossary').value=Object.entries(cfg.glossary).map(([k,v])=>k+' = '+v).join('\n');updateGlossaryInfo();await poll();}
   catch(e){notice('无法连接本地服务，请重新启动工具。');}
-  setInterval(()=>{poll();finishWhenReady();},1200);
+  setInterval(maintainLivePage,500);
 }
 $('start').onclick=startCapture;$('stop').onclick=stopCapture;
 $('profile').onchange=()=>{if(['美联储发布会','英语直播'].includes($('title').value))$('title').value=$('profile').value==='fed'?'美联储发布会':'英语直播';};
 $('login').onclick=async()=>{try{$('login').disabled=true;await request('/api/login',{provider:$('provider').value});hadLogin=true;await poll();}catch(e){notice(e.message);$('login').disabled=false;}};
 $('provider').onchange=async()=>{providerSwitching=true;$('login').disabled=true;$('provider').disabled=true;$('start').disabled=true;try{await request('/api/provider',{provider:$('provider').value});notice('已切换翻译 AI。请确认对应账号已登录，再开始新的一场翻译。');}catch(e){notice(e.message);}finally{providerSwitching=false;await poll();}};
 $('resume').onclick=async()=>{try{$('resume').disabled=true;await request('/api/resume',{session:selected,model:$('model').value});notice('已恢复处理，已采集内容会继续翻译。');await poll();}catch(e){notice(e.message);}finally{$('resume').disabled=false;}};
-$('history').onchange=()=>{selected=$('history').value;lastSignature='';poll();};
+$('history').onchange=()=>{selected=$('history').value;lastSignature='';ensureEventStream();poll();};
 $('retry').onclick=async()=>{try{if(lastState?.problem?.kind){notice('请先解决上方暂停原因，再点击“继续处理”。');return;}await request('/api/retry',{session:selected});notice('正在重试失败段落。');await poll();}catch(e){notice(e.message);}};
 $('checkLogin').onclick=async()=>{try{await request('/api/check-login');await poll();}catch(e){notice(e.message);}};
 $('saveGlossary').onclick=async()=>{try{const glossary=parseGlossary();await request('/api/glossary',{glossary});updateGlossaryInfo();notice('术语库已保存，将用于下一场美联储 / 财经翻译。');}catch(e){notice(e.message);}};
@@ -412,3 +500,25 @@ $('addBuiltinGlossary').onclick=async()=>{
     updateGlossaryInfo();notice(`已补充 ${count-Object.keys(current).length} 条，保留已有译法。点击“保存术语库”后生效。`);
   }catch(e){notice(e.message);}
 };
+
+function renderLatency(state, localSeconds=0){
+  const el=$('latencyStatus'), info=state.latency;
+  if(!el||!info)return;
+  const recent=info.latest||{};
+  if(state.pending||localSeconds){
+    const stages=[];
+    if(info.recognizing)stages.push('语音识别中');
+    if(info.translating)stages.push('AI 翻译中');
+    if(info.queued)stages.push(info.queued+' 段排队');
+    if(localSeconds)stages.push('还有 '+Math.ceil(localSeconds)+' 秒音频待提交');
+    const waiting=Number(info.oldest_processing_seconds)||0;
+    el.textContent=stages.join(' · ')+'；最早片段提交后已过 '+waiting.toFixed(1)+' 秒。';
+    if(waiting>25&&info.translating)el.textContent+=' 当前正在等待 AI 返回，缩短分段不一定能消除这部分等待。';
+  }else if(recent.processing_seconds){
+    const first=Number(recent.first_chinese_seconds)||0;
+    const queued=(Number(recent.recognition_wait_seconds)||0)+(Number(recent.translation_wait_seconds)||0);
+    el.textContent='最近一段：识别 '+Number(recent.asr_seconds||0).toFixed(1)+' 秒 · AI 翻译 '+Number(recent.translation_seconds||0).toFixed(1)+' 秒 · 排队 '+queued.toFixed(1)+' 秒。'+(first?'AI 首字 '+first.toFixed(1)+' 秒。':'')+'以上不含收集音频的时间。';
+  }else{
+    el.textContent='音频分段不是总延迟；处理时会显示识别、翻译和排队耗时。';
+  }
+}

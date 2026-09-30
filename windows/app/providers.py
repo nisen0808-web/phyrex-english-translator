@@ -176,12 +176,12 @@ def unwrap_result(raw):
     raise TranslationError('AI 返回的译文格式异常，已阻止保存，请重试该段。', 'format')
 
 
-def translate(source, context, glossary, model=None, profile='fed', provider='chatgpt'):
+def translate(source, context, glossary, model=None, profile='fed', provider='chatgpt', *, on_partial=None, session_id=None):
     validate_provider(provider)
     model = model or next(iter(PROVIDERS[provider]['models']))
     validate_model(provider, model)
     if provider == 'chatgpt':
-        return bridge.translate(source, context, glossary, model, profile)
+        return bridge.translate(source, context, glossary, model, profile, on_partial=on_partial, session_id=session_id)
     status = login_status(provider)
     if not status['ready']:
         raise TranslationError(status['message'], 'auth')
@@ -211,3 +211,14 @@ def translate(source, context, glossary, model=None, profile='fed', provider='ch
             raise TranslationError(PROVIDERS[provider]['label'] + ' 翻译等待超过 90 秒，请检查网络后继续处理。') from None
         finally:
             clear_transient_history(provider)
+
+
+translate.supports_streaming = True
+
+
+def prepare_session(*, model, profile, session_id, cancelled, provider='chatgpt'):
+    if provider == 'chatgpt':
+        bridge.prepare_session(model=model, profile=profile, session_id=session_id, cancelled=cancelled)
+
+
+translate.prepare = prepare_session

@@ -11,7 +11,7 @@
         <label for="profile">内容场景 · 英语输入</label><select id="profile"><option value="fed">美联储 / 财经 · 默认</option><option value="general">通用英语 · 新闻、访谈、课程</option></select>
         <label for="title">记录名称</label><input id="title" value="美联储发布会" maxlength="100">
         <label for="model">翻译模式</label><select id="model"><option value="gpt-6-luna">快速 · 日常跟看</option><option value="gpt-6-sol">精细 · 更高额度消耗</option></select>
-        <label for="chunk">最长音频分段</label><select id="chunk"><option value="12">12 秒 · 更新更频繁</option><option value="20" selected>20 秒 · 平衡延迟和额度</option><option value="30">30 秒 · 减少请求次数</option></select>
+        <label for="chunk">最长音频分段</label><select id="chunk"><option value="0" selected>实时跟随 · 自动 4–8 秒</option><option value="8">8 秒 · 低延迟（请求更频繁）</option><option value="12">12 秒 · 更新更频繁</option><option value="20">20 秒 · 平衡延迟和额度</option><option value="30">30 秒 · 减少请求次数</option></select>
         <button id="start" class="primary" disabled>准备运行环境…</button><button id="stop" class="stop" disabled>结束采集并保存</button>
         <div class="checks"><div id="asrStatus">○ 正在检查语音模型</div><div id="codexStatus">○ 正在检查自己的 ChatGPT 登录</div></div>
         <button id="login" class="secondary" hidden>登录自己的 ChatGPT</button><p id="loginMessage" class="footnote" role="status" hidden></p><a id="loginLink" class="link" target="_blank" rel="noopener noreferrer" hidden>打开所选 AI 官方登录页</a><button id="checkLogin" class="link">重新检查登录</button>
@@ -22,6 +22,7 @@
     </aside>
     <div class="reading">
       <section class="stats"><div><span>采集时长</span><strong id="duration">00:00</strong></div><div><span>待处理音频</span><strong id="backlog">0 秒</strong></div><div><span>已保存译文</span><strong id="count">0 段</strong></div></section>
+      <p id="latencyStatus" class="latency-status" role="status">音频分段不是总延迟；处理时会显示识别、翻译和排队耗时。</p>
       <!-- BEGIN PHYREX READ ALOUD -->
       <section class="speech-card" aria-label="中文朗读设置">
         <div class="speech-heading"><label><input type="checkbox" id="readAloud"> 中文朗读 · 朗读时屏蔽英文</label><span>本机声音</span></div>
@@ -41,6 +42,6 @@
       <p class="bottom-note">点击每段右上角的复制图标可单独复制中文，标记“待核实”的段落也可复制；复制内容不含时间戳和待核实说明。字幕时间从本次采集开始计算。</p>
     </div>
   </div>
-  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.3.0 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
+  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.3.1 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
 </main><script src="/app.js" defer></script>
 </body></html>

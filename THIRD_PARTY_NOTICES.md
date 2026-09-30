@@ -22,3 +22,5 @@ Mac 0.2.3-mac-beta 的可移植 Python、各架构依赖和固定文件校验值
 
 
 0.3.0 新增 Grok Build 1.0.44、Gemini CLI 0.61.0（均 Apache-2.0）及 Node.js 24.21.0。固定来源和完整校验值见 [AI 组件清单](release/ai-sources.lock.json)，许可和第三方声明保留在完整包 .runtime/ai 中。
+
+2026-10-01 可选 NVIDIA 加速组件由用户首次启用时下载，未包含在主分发包内。固定版本为 NVIDIA cuBLAS 12.4.5.8 和 cuDNN 9.10.2.21（CUDA 12，Windows x64）；下载地址与 SHA-256 见 `windows/app/setup_gpu.py`。安装器保留官方包中的 LICENSE 文件，位于 `.runtime/gpu` 下。这些 NVIDIA 组件适用其各自许可。

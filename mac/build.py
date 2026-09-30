@@ -132,7 +132,10 @@ def main():
     command([python, '-B', '-E', '-s', HERE.parent / 'tests/provider-checks.py', root, output / (name + '-provider-checks.json')])
     # Tests use an independent temporary home and never log into a real account.
     command([python, '-B', '-E', '-s', HERE / 'verify.py', root, report_path])
+    command([python, '-B', '-E', '-s', HERE.parent / 'tests/check-latency.py', root, output / (name + '-latency-checks.json')])
     command(['node', '--check', root / 'web/app.js'])
+    command(['node', HERE.parent / 'tests/latency-ui.cjs', root / 'web/app.js'])
+    command(['node', HERE.parent / 'tests/live-updates-ui.cjs', root / 'web/app.js'])
     command(['node', HERE.parent / 'tests/read-aloud.cjs', root / 'web/app.js', output / (name + '-read-aloud-checks.json')])
     count = manifest(root)
     zip_path = output / (name + '.zip')

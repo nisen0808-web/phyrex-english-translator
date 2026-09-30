@@ -1,4 +1,4 @@
-# 选择翻译 AI · 0.3.0-beta
+# 选择翻译 AI · 0.3.1-beta
 
 外部版可选 ChatGPT、Grok 和 Google Gemini。先选择 AI，再点击对应的登录按钮，使用自己的账号。不会要求你向发布者提供密码、Cookie 或 API 密钥。
 

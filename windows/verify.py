@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix='phyrex-windows-check-') as temporary:
     checks.append('native Codex runs; clean account ignores inherited credentials')
     extension = json.loads((root / 'extension/manifest.json').read_text(encoding='utf-8'))
     identity = ''.join(chr(97 + int(c, 16)) for c in hashlib.sha256(base64.b64decode(extension['key'])).hexdigest()[:32])
-    assert identity == native_host.EXTENSION_ID and extension['version'] == '0.3.0'
+    assert identity == native_host.EXTENSION_ID and extension['version'] == '0.3.1'
     assert set(extension['permissions']) == {'sidePanel', 'nativeMessaging'}
     assert not extension.get('content_scripts') and not extension.get('host_permissions')
     checks.append('extension identity preserved; no new browser permissions')
@@ -57,7 +57,7 @@ with tempfile.TemporaryDirectory(prefix='phyrex-windows-check-') as temporary:
     try:
         with opener.open(origin + '/api/config') as response:
             config = json.load(response)
-            assert config['version'] == '0.3.0-beta' and config['distribution'] == 'public'
+            assert config['version'] == '0.3.1-beta' and config['distribution'] == 'public'
         with opener.open(origin + '/') as response:
             page = response.read().decode('utf-8')
             assert 'readAloud' in page and '中文朗读' in page and '@PhyrexNi' in page
@@ -75,5 +75,5 @@ with tempfile.TemporaryDirectory(prefix='phyrex-windows-check-') as temporary:
     checks.append('actual loopback HTTP serves speech UI; foreign origins and private paths rejected')
     assert not list((profile / 'records').glob('*.json'))
     checks.append('fresh user profile contains no translations')
-report.write_text(json.dumps({'version': '0.3.0-beta', 'checks': checks, 'not_tested': ['real account login or quota', 'browser GUI installation and YouTube live capture', 'physical speakers and OS voice availability', 'new antivirus certification']}, indent=2), encoding='utf-8')
+report.write_text(json.dumps({'version': '0.3.1-beta', 'checks': checks, 'not_tested': ['real account login or quota', 'browser GUI installation and YouTube live capture', 'physical speakers and OS voice availability', 'new antivirus certification']}, indent=2), encoding='utf-8')
 print(json.dumps({'passed': len(checks)}))

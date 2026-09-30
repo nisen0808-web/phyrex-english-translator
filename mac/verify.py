@@ -112,7 +112,7 @@ with tempfile.TemporaryDirectory(prefix='phyrex-mac-check-') as scratch:
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     try:
         with opener.open(url + '/api/config') as response:
-            assert json.load(response)['version'] == '0.3.0-beta'
+            assert json.load(response)['version'] == '0.3.1-beta'
         with opener.open(url + '/') as response:
             page = response.read().decode('utf-8')
             assert '@PhyrexNi' in page and 'readAloud' in page and '中文朗读' in page

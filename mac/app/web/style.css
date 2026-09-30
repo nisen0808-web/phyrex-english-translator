@@ -7,6 +7,9 @@
 .problem-box button{flex-shrink:0}
 #loginLink{display:block;font-size:12px;overflow-wrap:anywhere}
 header p{letter-spacing:1px}
+/* BEGIN PHYREX READ ALOUD */
+.speech-card{background:#fcfdf9;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:16px}.speech-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600}.speech-heading>span{font-size:11px;color:#74836e;font-weight:400;white-space:nowrap}.speech-heading input{accent-color:var(--green);vertical-align:middle;margin-right:6px}.speech-options{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-top:12px}.speech-options>label{font-size:11px;color:#64765f;flex:1;min-width:90px}.speech-options>label:first-child{flex:2;min-width:160px}.speech-options select{display:block;margin-top:5px}.speech-actions{display:flex;gap:5px;flex-wrap:wrap;padding-bottom:1px}.speech-actions button{padding:9px 10px}.speech-card p{font-size:12px;line-height:1.7;margin:10px 0 0;color:#526c59}.speech-card .speech-help{font-size:11px;color:#7c8c77;margin-top:5px}.speech-card input:focus-visible{outline:2px solid var(--green);outline-offset:3px}.sidebar-mode .speech-card{padding:12px;margin-bottom:8px}.sidebar-mode .speech-heading{font-size:12px}.sidebar-mode .speech-options{gap:7px}.sidebar-mode .speech-options>label:first-child{min-width:130px}
+/* END PHYREX READ ALOUD */
 
 .sidebar-tools{display:none}
 body.sidebar-mode main{padding:0 8px;max-width:none}
@@ -39,6 +42,7 @@ body.sidebar-mode main{padding:0 8px;max-width:none}
 header .brand{flex-wrap:wrap;gap:14px 18px}
 header{gap:18px}
 @media(max-width:720px){.publisher-logo{min-height:46px;padding:10px 14px;font-size:23px}header .brand{gap:12px}}
-/* BEGIN PHYREX READ ALOUD */
-.speech-card{background:#fcfdf9;border:1px solid var(--line);border-radius:14px;padding:16px 20px;margin-bottom:16px}.speech-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:600}.speech-heading>span{font-size:11px;color:#74836e;font-weight:400;white-space:nowrap}.speech-heading input{accent-color:var(--green);vertical-align:middle;margin-right:6px}.speech-options{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-top:12px}.speech-options>label{font-size:11px;color:#64765f;flex:1;min-width:90px}.speech-options>label:first-child{flex:2;min-width:160px}.speech-options select{display:block;margin-top:5px}.speech-actions{display:flex;gap:5px;flex-wrap:wrap;padding-bottom:1px}.speech-actions button{padding:9px 10px}.speech-card p{font-size:12px;line-height:1.7;margin:10px 0 0;color:#526c59}.speech-card .speech-help{font-size:11px;color:#7c8c77;margin-top:5px}.speech-card input:focus-visible{outline:2px solid var(--green);outline-offset:3px}.sidebar-mode .speech-card{padding:12px;margin-bottom:8px}.sidebar-mode .speech-heading{font-size:12px}.sidebar-mode .speech-options{gap:7px}.sidebar-mode .speech-options>label:first-child{min-width:130px}
-/* END PHYREX READ ALOUD */
+
+.latency-status{font-size:12px;line-height:1.7;color:#586d60;margin:-7px 3px 18px}.sidebar-mode .latency-status{font-size:11px;margin:5px 3px 12px}
+
+.stream-label{font-size:12px;color:#557368;margin-top:7px}.row.pending:has(.stream-label)>p{color:#294a3c}

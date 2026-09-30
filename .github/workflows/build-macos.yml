@@ -85,8 +85,13 @@ jobs:
         run: |
           node --check windows/app/web/app.js
           node --check mac/app/web/app.js
+          node tests/latency-ui.cjs windows/app/web/app.js
+          node tests/latency-ui.cjs mac/app/web/app.js
+          node tests/live-updates-ui.cjs windows/app/web/app.js
+          node tests/live-updates-ui.cjs mac/app/web/app.js
           node tests/read-aloud.cjs windows/app/web/app.js dist-updates/Windows-read-aloud-checks.json
           node tests/read-aloud.cjs mac/app/web/app.js dist-updates/Mac-read-aloud-checks.json
+          python3 release/build_latency_update.py dist-updates
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: release-updates
@@ -118,11 +123,11 @@ jobs:
           set -euo pipefail
           cd artifacts
           sha256sum -c *.sha256
-          tag=v0.3.0-beta
+          tag=v0.3.1-beta
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'Release already exists; refusing to overwrite it.'
             exit 1
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 三 AI 公开测试版 0.3.0' --notes-file ../release/RELEASE.md
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 低延迟优化测试版 0.3.1' --notes-file ../release/RELEASE.md
           gh release upload "$tag" ./*.7z ./*.zip ./*.sha256 ./*checks.json
           gh release edit "$tag" --draft=false --prerelease

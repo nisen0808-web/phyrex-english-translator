@@ -1,29 +1,30 @@
 from terminology import recognition_hotwords
 import time
-from runtime import model_path
+from gpu_runtime import SpeechRuntime
 from profiles import profile_config
 
-class Recognizer:
+class Recognizer(SpeechRuntime):
+    supports_tail_recovery = True
     def __init__(self):
-        self.model = None
+        super().__init__()
 
-    def load(self):
-        from faster_whisper import WhisperModel
-        self.model = WhisperModel(str(model_path()), device='cpu', compute_type='int8',
-                                  cpu_threads=6, local_files_only=True)
-
-    def transcribe(self, pcm, tail, context, keywords, profile='fed'):
+    def transcribe(self, pcm, tail, context, keywords, profile='fed', *, uncommitted_tail_seconds=0):
         import numpy as np
+        self.recovered_decode = False
         if self.model is None:
             self.load()
         audio = np.frombuffer(pcm, dtype='<i2').astype(np.float32) / 32768.0
         lead = np.frombuffer(tail, dtype='<i2').astype(np.float32) / 32768.0
         lead_seconds = len(lead) / 16000
-        if len(audio) < 320 or np.sqrt(np.mean(audio * audio)) < 0.00015:
+        uncommitted_tail_seconds = min(lead_seconds, max(0, uncommitted_tail_seconds))
+        cutoff = lead_seconds - uncommitted_tail_seconds
+        combined = np.concatenate([lead, audio])
+        signal = combined if uncommitted_tail_seconds else audio
+        if len(audio) < 320 or np.sqrt(np.mean(signal * signal)) < 0.00015:
             return '', 0.0, len(audio) / 16000, 0.0, False
         combined = np.concatenate([lead, audio])
         started = time.monotonic()
-        segments, _ = self.model.transcribe(
+        segments = self.decode_segments(
             combined, language='en', beam_size=3, temperature=0,
             vad_filter=True, vad_parameters={'min_silence_duration_ms': 450},
             word_timestamps=True, condition_on_previous_text=False,
@@ -32,10 +33,11 @@ class Recognizer:
         words, uncertain = [], False
         for seg in segments:
             for w in seg.words or []:
-                if (w.start + w.end) / 2 >= lead_seconds:
+                if (w.start + w.end) / 2 >= cutoff:
                     words.append(w)
                     uncertain = uncertain or w.probability < 0.35
+        uncertain = uncertain or self.recovered_decode
         text = ''.join(w.word for w in words).strip()
-        start = max(0, words[0].start - lead_seconds) if words else 0
-        end = min(len(audio) / 16000, words[-1].end - lead_seconds) if words else len(audio) / 16000
+        start = max(-uncommitted_tail_seconds, words[0].start - lead_seconds) if words else 0
+        end = min(len(audio) / 16000, words[-1].end - lead_seconds) if words else 0
         return text, float(start), float(max(start, end)), round(time.monotonic() - started, 2), bool(uncertain)

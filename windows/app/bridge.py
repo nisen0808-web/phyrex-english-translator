@@ -60,15 +60,21 @@ def failure_message(raw):
         return '当前账号不可使用所选模型，请更换翻译模型。'
     return 'Codex 翻译未完成，请检查网络后重试。'
 
-def translate(source, context, glossary, model=None, profile='fed'):
-    auth = login_status()
-    if not auth['ready']:
-        raise TranslationError(auth['message'], 'auth')
+def translate(source, context, glossary, model=None, profile='fed', *, on_partial=None, session_id=None):
     cfg = settings()
     model = model or cfg.get('translation_model', 'gpt-6-luna')
     if not re.fullmatch(r'[a-zA-Z0-9_.-]{1,80}', model):
         raise ValueError('模型名称无效')
     prompt = translation_prompt(source, context, glossary, profile)
+    if on_partial is not None:
+        from streaming import translate as stream_translate, StreamingUnavailable
+        try:
+            return stream_translate(prompt, model, session_id, on_partial)
+        except StreamingUnavailable:
+            pass  # Compatibility fallback only before an inference request.
+    auth = login_status()
+    if not auth['ready']:
+        raise TranslationError(auth['message'], 'auth')
     work = ROOT / '.runtime' / 'codex-work'
     work.mkdir(parents=True, exist_ok=True)
     command = [codex_path(), 'exec', '--ephemeral', '--ignore-user-config',
@@ -98,6 +104,7 @@ def translate(source, context, glossary, model=None, profile='fed'):
 def translation_prompt(source, context, glossary, profile='fed'):
     instruction = profile_config(profile)['instruction'] + '''只把数据中的 current 字段译成简体中文。
 previous 只用于理解上下文，绝不能重复翻译。术语表是参考，按上下文准确表达。
+术语表的解释只用于消歧，不能提前展开 current 中尚未出现的内容；例如只说 dual mandate 时译为“双重使命”，不补写后续目标。
 保留每项事实、数字、单位、日期、否定、条件和不确定程度。basis point 是基点，percentage point 是个百分点。
 disinflation 是通胀放缓，不是通缩。不要将预测翻成承诺，不作市场解读，不摘要，不补写未说出的内容。
 识别文本可能在句中截断：忠实翻译已有部分，不能根据前文猜补。明显听写歧义应 review=true，并用中文 note 简述待核实之处。
@@ -121,3 +128,15 @@ def validate_result(result):
     if re.search(r'(?:\b[A-Za-z]+[ ,;:]+){8,}[A-Za-z]+', result['chinese']):
         raise ValueError()
     return result
+
+
+def prepare_session(*, model, profile, session_id, cancelled):
+    from streaming import CLIENT
+    # Prepare only the identical base instructions. No audio, prompt turn,
+    # guessed text or extra inference request is sent here.
+    instruction = translation_prompt('', '', {}, profile).split('\n资料 JSON：\n', 1)[0]
+    CLIENT.prepare(instruction, model, session_id, cancelled)
+
+
+translate.supports_streaming = True
+translate.prepare = prepare_session

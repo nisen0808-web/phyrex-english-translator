@@ -1,26 +1,33 @@
-# 三 AI 公开测试版 · 0.3.0-beta
+# 低延迟优化测试版 · 0.3.1-beta
 
-外部版新增 ChatGPT、Grok、Google Gemini 选择。Windows、Apple 芯片 Mac、Intel Mac 均包含官方组件；使用各自的个人账号。
+减少英语直播翻译中的程序等待，保留 ChatGPT、Grok、Gemini 选择、556 条美联储与宏观财经术语、中文朗读、逐段复制和 TXT / Word / SRT 导出。每个人继续登录自己的 AI 账号。
 
-- ChatGPT 继续通过 Codex 登录；Grok 使用官方 Grok Build，账号需要有 Build 权限；Gemini 使用官方 Gemini CLI 的 Google 登录。
-- 选择 AI 后登录自己的账号。不同服务分别计算额度，不自动切换，不内置发布者账号，不要求 API 密钥。
-- 一场采集固定使用开始时选定的 AI。美联储 556 条术语、通用英语、逐段复制、中文朗读及 TXT/Word/SRT 导出共用。
-- 保留中文朗读时屏蔽英文外放，识别音轨持续采集。朗读默认关闭，需系统本机中文声音。
+- 本机识别与 AI 翻译流水线并行，自动选择 4–8 秒分段，并保留切点附近尚未识别完的声音。
+- ChatGPT 提前准备官方连接和临时会话，逐字显示中文；复用连接确认登录，减少每段重复启动进程。
+- 译文即时推送，只更新变化的段落。断线后恢复完整状态，推送不可用时保留原轮询方式。
+- 生成中的中文只用于预览；完成并校验后才可复制、朗读和导出。待核实说明仍保留，复制与朗读只取正文。
+- Windows x64 的兼容 NVIDIA 显卡可选启用本机识别加速；不支持时使用 CPU。Mac 本次使用 CPU。
 
-## 下载
+识别模型、专业词库和翻译上下文保留，不靠猜测未来讲话或强行缩短分段来提速。网络和 AI 服务响应仍有波动，不承诺零延迟或固定延迟。
 
-首次使用选完整包：Windows 选 Windows-x64-Compact.7z；Mac 按芯片选 macOS-arm64.zip 或 macOS-x86_64.zip。Source code 不含运行组件和语音模型。
+## 下载与更新
 
-已有 0.2.x 完整版可用对应系统及芯片的 PhyrexNi-AI-0.3.0-…-Update.zip，复用原语音模型与 Python。升级前结束采集、运行 Stop 脚本并备份；按包内说明合并文件，包含隐藏的 .runtime/ai，保留 user-data 及原语音组件。不熟悉文件合并时请用完整包，在停止旧组件后迁移 user-data 并重新注册扩展。
+**首次安装：** Windows 下载 Windows-x64-Compact.7z；Mac 按芯片下载 macOS-arm64.zip 或 macOS-x86_64.zip。Source code 不包含运行组件和语音模型。
 
-## 数据与测试范围
+**已有 0.3.0 完整版：** 下载 `PhyrexNi-0.3.1-Windows-Mac-App-Update.zip`，三个平台共用，小体积、不含大型运行组件。停止组件并备份后，按包内说明合并文件，保留 `user-data` 与 `.runtime`，重启并刷新页面。更新后在扩展管理页重新加载原扩展。
 
-声音在本机识别；英文文字、短上下文与术语发给所选 AI 官方服务。应用记录仅保存中文。Grok/Gemini 官方组件可能写临时会话缓存，本工具在翻译后和下次启动时清理；异常退出可能暂留缓存，不承诺英文从不落盘。
+**已有 0.2.x 完整版：** 下载对应系统和芯片的 `PhyrexNi-AI-0.3.1-…-Update.zip`，包含三 AI 组件，复用原语音模型。按说明合并隐藏的 `.runtime/ai`；不要用小体积 App 更新包跨越 0.2.x。
 
-发布要求三个系统通过组件运行、账号隔离、页面和重新解压检查，另有 12 项 provider 检查及 13 项朗读检查。包括真实官方组件无账号启动与 Gemini 登录协议初始化；模拟译文用于检查路由和错误处理。
+**可选 NVIDIA 加速：** Windows 用户先停止组件，再运行 `Enable-GPU.cmd`。兼容性检查通过后首次下载约 1.1 GB 的固定版本 NVIDIA 库，并校验 SHA-256。程序不改系统驱动；没有兼容显卡不下载。需至少 4 GB 可用空间。重新启动后页面应显示“显卡加速”。
 
-**真实 Grok/Google 账号授权、账号权限与额度、实际模型译文尚未完成实测。** 真实直播、不同系统中文声音和物理扬声器效果仍需公开测试。检查报告及 SHA-256 随附件提供。
+## 数据与验证范围
 
-Mac 尚未经过 Apple 公证；此版尚无新的杀毒认证。仍为 GitHub 公开测试版，尚未上架 Chrome/Edge 商店。
+音频在本机识别；英文、短上下文与相关术语发给用户选定的官方 AI 服务。应用记录仅保存中文。Grok/Gemini 官方组件可能写临时缓存，本工具在翻译后及下次启动时清理；异常退出可能暂留缓存。
 
-[AI 账号说明](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/AI_PROVIDERS.md) · [安装说明](https://github.com/nisen0808-web/phyrex-english-translator#首次使用) · [反馈问题](https://github.com/nisen0808-web/phyrex-english-translator/issues)
+发布必须通过 Windows、Apple 芯片 Mac、Intel Mac 的原生组件与重新解压检查，另有各平台 27 项管线、流式、显卡回退、安装和 HTTP 推送检查，12 项 AI 路由与账号隔离检查，15 项朗读检查。前端检查包含 500 段局部刷新、断线重连、历史切换和旧响应隔离。检查报告与 SHA-256 均在附件中。
+
+Windows 使用真实 ChatGPT 账号按原速回放 24 秒美联储音频，6 段对应 6 次翻译，预热没有额外翻译请求。单次测得片段提交至本机推送收到中文首字的中位数约 2.40 秒，另需音频采集时间，不含 YouTube 采集和浏览器渲染。该样本不能代表其他网络、显卡或长期直播表现。
+
+**真实 Grok/Google 授权、额度和模型译文，以及 Mac 的真实 AI 延迟和浏览器朗读，尚未完成本轮实测。** 原生构建检查不是这些环节的证明。Mac 尚未经过 Apple 公证；此版没有新增杀毒认证。仍为 GitHub 公开测试版，尚未上架扩展商店。
+
+[安装说明](https://github.com/nisen0808-web/phyrex-english-translator#首次使用) · [AI 账号说明](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/AI_PROVIDERS.md) · [验证范围](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/VERIFICATION.md) · [反馈问题](https://github.com/nisen0808-web/phyrex-english-translator/issues)

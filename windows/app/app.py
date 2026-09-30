@@ -82,7 +82,10 @@ def export_docx(session, include_times=True):
         z.writestr('word/styles.xml', '<?xml version="1.0"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:eastAsia="Microsoft YaHei"/><w:sz w:val="24"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="320" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults></w:styles>')
     return out.getvalue()
 
-class Engine:
+from latency import LowLatencyPipeline
+from live_updates import serve_events
+
+class Engine(LowLatencyPipeline):
     def __init__(self, data=DATA, recognizer=None, translator=translate, warm=True, retry_delays=(2, 5)):
         self.data = data
         self.data.mkdir(parents=True, exist_ok=True)
@@ -116,12 +119,13 @@ class Engine:
                 if s.get('status') in ('recording', 'draining'):
                     s['status'] = 'interrupted'
                     for row in s['rows']:
-                        if row['status'] in ('queued', 'recognizing', 'translating'):
+                        if row['status'] in ('queued', 'recognizing', 'waiting_translation', 'translating'):
                             row.update(status='failed', text='[程序中断，该段未完成翻译]', note='请从原视频重播这一时间段。')
                     write_json(path, s)
                 self.sessions[s['id']] = s
             except (ValueError, KeyError, OSError):
                 continue
+        self.initialize_pipeline()
         if warm:
             threading.Thread(target=self.warm, daemon=True).start()
         threading.Thread(target=self.worker, daemon=True).start()
@@ -130,9 +134,11 @@ class Engine:
         self.refresh_login()
         try:
             self.recognizer.load()
-            self.asr = {'ready': True, 'message': '本地语音识别已就绪'}
+            self.asr = {'ready': True, 'message': getattr(self.recognizer, 'status_message', '本地语音识别已就绪')}
         except Exception:
             self.asr = {'ready': False, 'message': '语音模型加载失败，请运行安装程序。'}
+        finally:
+            self.notify_changed()
 
     def refresh_login(self):
         with self.lock:
@@ -141,6 +147,7 @@ class Engine:
         with self.lock:
             if provider == self.provider:
                 self.codex = status
+                self.notify_changed()
         return status
 
     def select_provider(self, provider):
@@ -173,6 +180,7 @@ class Engine:
                 self.retry(sid)
             self.problem = {}
             self.gate.set()
+            self.notify_changed()
 
     def heartbeat(self, sid):
         with self.lock:
@@ -191,6 +199,7 @@ class Engine:
 
     def persist(self, session):
         write_json(self.data / (session['id'] + '.json'), session)
+        self.notify_changed()
 
     def start(self, title, model, profile='fed', provider=None):
         with self.lock:
@@ -214,6 +223,7 @@ class Engine:
                  'profile': profile, 'language': 'en', 'provider': provider, 'last_seen': time.time()}
             self.sessions[sid] = s
             self.persist(s)
+            self.prepare_session(s)
             return sid
 
     def accept(self, sid, seq, start, pcm):
@@ -239,14 +249,14 @@ class Engine:
             if self.pending >= MAX_PENDING:
                 raise OverflowError('处理队列已满，正在等待已有片段完成。')
             row = {'seq': seq, 'start': start, 'end': start + duration, 'text': '', 'note': '',
-                   'status': 'queued', 'review': False, 'digest': digest, 'asr_seconds': 0, 'translation_seconds': 0}
+                   'capture_start': start, 'capture_end': start + duration, 'status': 'queued', 'review': False, 'digest': digest, 'asr_seconds': 0, 'translation_seconds': 0}
             s['rows'].append(row)
             s['next_seq'] += 1
             s['received_seconds'] += duration
             s['last_seen'] = time.time()
             self.persist(s)
             self.pending += 1
-            self.jobs.put({'sid': sid, 'seq': seq, 'pcm': pcm})
+            self.enqueue_job({'sid': sid, 'seq': seq, 'pcm': pcm})
         return {'accepted': True}
 
     def finish(self, sid):
@@ -258,11 +268,17 @@ class Engine:
             self.persist(s)
 
     def settle(self, s):
-        working = any(r['status'] in ('queued', 'recognizing', 'translating') for r in s['rows'])
+        working = any(r['status'] in ('queued', 'recognizing', 'waiting_translation', 'translating') for r in s['rows'])
         if s['status'] == 'draining' and not working:
             s['status'] = 'finished'
+            self.cancel_preparation(s['id'])
             self.contexts.pop(s['id'], None)
             self.tails.pop(s['id'], None)
+            self.recognized_sequences.pop(s['id'], None)
+            self.tail_gaps.pop(s['id'], None)
+            if getattr(self.translator, 'supports_streaming', False):
+                from streaming import close_session
+                close_session(s['id'])
 
     def retry(self, sid):
         with self.lock:
@@ -278,85 +294,81 @@ class Engine:
                 row.update(status='queued', text='', note='')
                 self.failed.pop(key)
                 self.pending += 1
-                self.jobs.put(job)
+                self.enqueue_job(job)
             if self.sessions[sid]['status'] == 'finished':
                 self.sessions[sid]['status'] = 'draining'
             self.persist(self.sessions[sid])
 
-    def worker(self):
-        while True:
-            job = self.jobs.get()
-            self.gate.wait()
-            sid, seq = job['sid'], job['seq']
-            s = self.sessions[sid]
-            row = next(r for r in s['rows'] if r['seq'] == seq)
-            try:
-                with self.lock:
-                    row['status'] = 'recognizing'
-                if 'source' not in job:
-                    tail = job.get('tail', self.tails.get(sid, b''))
-                    context = job.get('context', self.contexts.get(sid, ''))
-                    job['tail'], job['context'] = tail, context
-                    source, a, b, seconds, uncertain = self.recognizer.transcribe(job['pcm'], tail, context, list(s['glossary']), s.get('profile', 'fed'))
-                    self.tails[sid] = job['pcm'][-RATE * 2:]
-                    self.contexts[sid] = (context + ' ' + source)[-1800:]
-                    job.update(source=source, uncertain=uncertain)
-                    row['asr_seconds'] = seconds
-                    # Preserve original capture interval for retries, independent of word boundaries.
-                    row.setdefault('capture_start', row['start'])
-                    row['start'], row['end'] = row['capture_start'] + a, row['capture_start'] + b
-                if not job['source']:
-                    with self.lock:
-                        row['status'] = 'silent'
+    def recognize_job(self, job, s, row):
+        sid, seq = job['sid'], job['seq']
+        if 'source' not in job:
+            tail = job.get('tail', self.tails.get(sid, b''))
+            context = job.get('context', self.contexts.get(sid, ''))
+            job['tail'], job['context'] = tail, context
+            recovery = {}
+            if getattr(self.recognizer, 'supports_tail_recovery', False):
+                job.setdefault('tail_gap', self.tail_gaps.get(sid, 0))
+                recovery['uncommitted_tail_seconds'] = job['tail_gap']
+            source, a, b, seconds, uncertain = self.recognizer.transcribe(job['pcm'], tail, context, list(s['glossary']), s.get('profile', 'fed'), **recovery)
+            if seq > self.recognized_sequences.get(sid, -1):
+                if recovery:
+                    carry = job.get('tail_gap', 0) if not source and b == 0 else 0
+                    gap = min(5, max(0, len(job['pcm']) / (RATE * 2) - b + carry))
+                    self.tail_gaps[sid] = gap
+                    keep = int((gap + 1) * RATE) * 2
+                    self.tails[sid] = (tail + job['pcm'])[-keep:]
                 else:
-                    with self.lock:
-                        row['status'] = 'translating'
-                    for attempt in range(len(self.retry_delays) + 1):
-                        try:
-                            args = (job['source'], job['context'], s['glossary'], s['model'], s.get('profile', 'fed'))
-                            if s.get('provider', 'chatgpt') == 'chatgpt':
-                                result, elapsed = self.translator(*args)
-                            else:
-                                result, elapsed = self.translator(*args, provider=s['provider'])
-                            break
-                        except TranslationError as exc:
-                            if exc.kind != 'network' or attempt == len(self.retry_delays):
-                                raise
-                            with self.lock:
-                                row['note'] = f'连接暂时中断，正在自动重试（{attempt + 1}/{len(self.retry_delays)}）…'
-                            time.sleep(self.retry_delays[attempt])
-                    with self.lock:
-                        row.update(text=result['chinese'].strip(), status='done', translation_seconds=elapsed,
-                                   review=bool(result['review'] or job['uncertain']), note=result['note'])
-                        if job['uncertain'] and not row['note']:
-                            row['note'] = '部分音频识别把握较低，数字和专有名词建议复核。'
-            except Exception as exc:
+                    self.tails[sid] = job['pcm'][-RATE * 2:]
+                self.contexts[sid] = (context + ' ' + source)[-1800:]
+                self.recognized_sequences[sid] = seq
+            job.update(source=source, uncertain=uncertain)
+            row['asr_seconds'] = seconds
+            if hasattr(self.recognizer, 'status_message'):
+                self.asr = {'ready': True, 'message': self.recognizer.status_message}
+            # Preserve original capture interval for retries, independent of word boundaries.
+            row.setdefault('capture_start', row['start'])
+            row['start'], row['end'] = row['capture_start'] + a, row['capture_start'] + b
+
+    def translate_job(self, job, s, row):
+        for attempt in range(len(self.retry_delays) + 1):
+            try:
+                stream = self.streaming_options(job, s, row)
+                args = (job['source'], job['context'], s['glossary'], s['model'], s.get('profile', 'fed'))
+                if s.get('provider', 'chatgpt') == 'chatgpt':
+                    result, elapsed = self.translator(*args, **stream)
+                else:
+                    result, elapsed = self.translator(*args, provider=s['provider'], **stream)
+                break
+            except TranslationError as exc:
+                if exc.kind != 'network' or attempt == len(self.retry_delays):
+                    raise
                 with self.lock:
-                    # Never persist raw exception strings or raw source audio/transcripts.
-                    note = str(exc) if isinstance(exc, RuntimeError) and re.search('[\u3400-\u9fff]', str(exc)) else '语音识别或翻译失败，请重试。'
-                    row.update(status='failed', text='[该段翻译失败]', note=note, review=True)
-                    if isinstance(exc, TranslationError):
-                        self.problem = {'kind': exc.kind, 'session': sid, 'message': note + ' 已暂停处理，请解决后点击“继续处理”。'}
-                        self.gate.clear()
-                        if exc.kind == 'auth':
-                            provider = s.get('provider', 'chatgpt')
-                            if provider != 'chatgpt':
-                                mark_login(provider, False)
-                            self.codex = {'ready': False, 'message': PROVIDERS[provider]['label'] + ' 登录需要重新确认。'}
-                    if len(self.failed) < 30:
-                        self.failed[(sid, seq)] = job
-                    else:
-                        row['note'] += ' 内存重试缓存已满，请从原视频重播。'
-            finally:
-                with self.lock:
-                    self.pending -= 1
-                    self.settle(s)
-                    try:
-                        self.persist(s)
-                        self.storage_error = ''
-                    except OSError:
-                        self.storage_error = '磁盘写入失败：请保留服务运行，导出当前译文并检查磁盘空间。'
-                self.jobs.task_done()
+                    row['note'] = f'连接暂时中断，正在自动重试（{attempt + 1}/{len(self.retry_delays)}）…'
+                time.sleep(self.retry_delays[attempt])
+        with self.lock:
+            row.update(text=result['chinese'].strip(), status='done', translation_seconds=elapsed,
+                       review=bool(result['review'] or job['uncertain']), note=result['note'])
+            if job['uncertain'] and not row['note']:
+                row['note'] = '部分音频识别把握较低，数字和专有名词建议复核。'
+
+    def fail_job(self, job, s, row, exc):
+        sid, seq = job['sid'], job['seq']
+        with self.lock:
+            # Never persist raw exception strings or raw source audio/transcripts.
+            note = str(exc) if isinstance(exc, RuntimeError) and re.search('[\u3400-\u9fff]', str(exc)) else '语音识别或翻译失败，请重试。'
+            row.update(status='failed', text='[该段翻译失败]', note=note, review=True)
+            if isinstance(exc, TranslationError):
+                self.problem = {'kind': exc.kind, 'session': sid, 'message': note + ' 已暂停处理，请解决后点击“继续处理”。'}
+                self.gate.clear()
+                if exc.kind == 'auth':
+                    provider = s.get('provider', 'chatgpt')
+                    if provider != 'chatgpt':
+                        mark_login(provider, False)
+                    self.codex = {'ready': False, 'message': PROVIDERS[provider]['label'] + ' 登录需要重新确认。'}
+            if len(self.failed) < 30:
+                self.failed[(sid, seq)] = job
+            else:
+                row['note'] += ' 内存重试缓存已满，请从原视频重播。'
 
     def state(self, sid=None):
         with self.lock:
@@ -364,15 +376,22 @@ class Engine:
             if not s and self.sessions:
                 s = next(reversed(self.sessions.values()))
             # Serialization here also prevents concurrent mutation during response writes.
-            result = {'asr': self.asr, 'codex': self.codex, 'session': s, 'storage_error': self.storage_error,
+            result = {'revision': self.revision, 'asr': self.asr, 'codex': self.codex, 'session': s, 'storage_error': self.storage_error,
                       'provider': self.provider, 'providers': PROVIDERS,
                       'login': self.login.state(), 'problem': self.problem,
                       'sessions': [{'id': x['id'], 'title': x['title'], 'created': x['created'], 'status': x['status']}
                                    for x in reversed(list(self.sessions.values()))],
                       'pending': self.pending, 'retryable': sum(1 for key in self.failed if s and key[0] == s['id'])}
             if s:
-                result['backlog_seconds'] = round(sum(r['end'] - r['start'] for r in s['rows'] if r['status'] in ('queued','recognizing','translating')), 1)
-            return json.loads(json.dumps(result, ensure_ascii=False))
+                result['latency'] = self.pipeline_state(s)
+                result['backlog_seconds'] = round(sum(r['end'] - r['start'] for r in s['rows'] if r['status'] in ('queued','recognizing','waiting_translation','translating')), 1)
+            result = json.loads(json.dumps(result, ensure_ascii=False))
+            if result['session']:
+                for row in result['session']['rows']:
+                    preview = self.previews.get((result['session']['id'], row['seq']))
+                    if preview and row['status'] == 'translating':
+                        row['preview'] = preview
+            return result
 
 class Handler(BaseHTTPRequestHandler):
     engine = None
@@ -415,10 +434,12 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if parsed.path == '/api/glossary-default':
                 return self.send(json.loads((ROOT / 'glossary.json').read_text(encoding='utf-8')))
+            if parsed.path == '/api/events':
+                return serve_events(self, args.get('session', [None])[0])
             if parsed.path == '/api/state':
                 return self.send(self.engine.state(args.get('session', [None])[0]))
             if parsed.path == '/api/config':
-                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.0-beta', 'token': self.token,
+                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.1-beta', 'token': self.token,
                                   'providers': PROVIDERS,
                                   'language': 'en', 'glossary': self.engine.glossary,
                                   'glossary_info': json.loads((ROOT / 'glossary-info.json').read_text(encoding='utf-8')),
