@@ -1,4 +1,4 @@
-"""Build a small cross-platform source patch for an installed 0.3.0-beta."""
+"""Build a small cross-platform source patch for an installed 0.3.0-beta or 0.3.1-beta."""
 import hashlib
 import json
 from pathlib import Path
@@ -6,65 +6,43 @@ import sys
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-FILES = ('app.py', 'latency.py', 'streaming.py', 'live_updates.py', 'recognizer.py', 'bridge.py', 'providers.py', 'web/app.js', 'web/index.html', 'web/style.css', 'gpu_runtime.py', 'setup_gpu.py', 'Enable-GPU.cmd', 'extension/manifest.json', '加速更新说明.md')
-NAME = 'PhyrexNi-0.3.1-Windows-Mac-App-Update'
+FILES = ('app.py', 'latency.py', 'streaming.py', 'live_updates.py', 'recognizer.py', 'bridge.py', 'fed_phrasing.py', 'providers.py', 'web/app.js', 'web/index.html', 'web/style.css', 'gpu_runtime.py', 'setup_gpu.py', 'Enable-GPU.cmd', 'extension/manifest.json', '加速更新说明.md', 'VERIFICATION.md', 'PRIVACY.md')
+NAME = 'PhyrexNi-0.3.2-Windows-Mac-App-Update'
 
-NOTE = '''@PhyrexNi · 连接预热、即时推送与显卡加速更新 · 0.3.1-beta · 2026-10-01
+NOTE = '''@PhyrexNi · 美联储用语优化 · 0.3.2-beta · 2026-10-27
 
-适用于已经安装 0.3.0-beta 的外部分发版。
+适用于已经安装 0.3.0-beta 或 0.3.1-beta 的外部分发版。
 Windows x64 / Mac Apple 芯片 / Mac Intel 共用此更新包。
 此包不能独立运行，也不能用于个人本地版或 0.2.x 旧版。
 
 安装方法
 1. 结束采集，等待处理完成并导出需要的文字。
 2. 关闭翻译页面，运行组件目录的 Stop.cmd（Windows）或 Stop.command（Mac）。
-3. 备份现有组件目录。不要删除 user-data、.runtime 或 extension。
-4. 将本包中的九个 .py 文件、Enable-GPU.cmd 、加速更新说明.md、extension/manifest.json 和 web 内的三个文件复制到现有组件的对应位置，替换同名文件；新增 live_updates.py 也必须复制。
+3. 备份现有组件目录，保留 user-data、.runtime 和 extension。
+4. 将本包全部应用文件合并到原组件目录，替换同名文件，新增的 fed_phrasing.py 也必须复制。
    组件目录是包含 Start.cmd / Start.command 的文件夹，不是 extension 文件夹。
-   web 文件夹应合并内容，不要删除整个旧 web 文件夹。
-5. 运行 Start.cmd / Start.command，然后刷新原翻译页面；扩展管理页重新加载原扩展，侧栏也需要刷新。
-6. 页面底部显示 0.3.1 BETA 即表示新版页面已载入。
-
-可选显卡加速（仅 Windows x64 + NVIDIA）
-本包不含大型显卡库。有兼容 NVIDIA 显卡时，先停止组件，再双击 Enable-GPU.cmd。
-先检测显卡兼容性，不兼容则不下载。安装器显示下载进度。
-首次下载约 1.1 GB，至少需 4 GB 可用空间。程序只从 NVIDIA 官方 Python 包下载固定版本，校验 SHA-256 后解压到本工具目录，不改系统驱动。
-重新启动后，页面应显示“本地语音识别已就绪 · 显卡加速”。依赖缺失或显卡不可用时继续用 CPU。
-Mac 本次继续使用 CPU，不具备这项 NVIDIA 加速。
+   web 与 extension 均应合并内容，不能删除整个旧文件夹；不要替换 user-data 或 .runtime。
+5. 运行 Start.cmd / Start.command，刷新页面；在扩展管理页重新加载原扩展并刷新侧栏。
+6. 页面底部应显示 0.3.2 BETA。
 
 本次改进
-- 开始采集时提前准备 ChatGPT 连接和临时会话；不额外发送翻译请求。
-- 复用官方连接检查 ChatGPT 登录，每段不再另启登录检查进程；权限检查和 API 密钥拒绝规则保留。
-- 译文变化立即推送到页面；掉线后重新接收完整状态，推送不可用时保留轮询。
-- 每次只更新变化的段落，保留已有段落、复制图标状态和手动滚动位置。
-- 等待 AI 翻译时，同步识别下一段英语，减少音频积压。
-- ChatGPT 通过官方 Codex 保持临时会话，逐字显示生成中的中文。兼容性不足时回到原翻译方式。
-- 按实际处理耗时自动选择 4–8 秒分段，不再把正常并行处理误判为积压；处理空闲时可在自然停顿处更早提交音频。
-- 切点附近尚未识别出的音频保留到下一段，减少漏词。
-- 检测异常重复字符，先重新识别再翻译；保留待核实提示。
-- 术语解释只用于理解，不提前补写说话人尚未说出的后续内容。
-- 生成中的中文明确标注；完成并通过格式检查后才进入复制、朗读和导出。
-- 页面显示识别、AI 翻译和排队情况，保留原模型、精度设置及专业词库。
-- 每段复制、中文朗读、记录及导出继续保留。
+- 美联储模式增加七组按当前片段匹配的用法提示：增长与放缓、政策立场、通胀与通缩、劳动力市场、百分比与基点、PCE、统计口径。
+- 区分增长放缓与温和增长、通胀回落与物价下跌、招聘放缓与裁员；保留否定、程度和不确定性。
+- 不改写识别出的英文，不根据术语猜补后文；听写含糊仍提示待核实。
+- 三种 AI 共用；通用英语模式不变。不增加模型调用次数，不改变模型和音频分段设置。
+- 保留现有连接预热、逐字预览、中文朗读、逐段复制、记录与导出。
 
 注意
-分段秒数不是总延迟；短分段会更频繁地请求 AI，额度用量可能增加。
-此次逐字显示功能仅接入 ChatGPT；Grok/Gemini 保留原方式，使用相同自动分段及跨段识别改进。
-AI 服务响应慢或网络不稳定时仍可能等待。此次未改变登录方式及 AI 模型。
-已有全文记录和登录仍由旧组件保留，本包不含账号、音频、私人记录或大型运行组件。
-原 manifest.sha256.json 不再代表被替换的文件，请用本包 latency-update-checksums.json 核对。
-需要回退时，停止组件后恢复之前备份的对应文件；原版没有 latency.py / streaming.py / live_updates.py 时可删除这些新增文件。
+用法提示会增加少量输入文本，具体额度取决于所选 AI；此版不承诺固定延迟或几乎同步。
+原有 Windows NVIDIA 可选加速继续保留，具体安装见加速更新说明.md；Mac 继续使用 CPU。
+本包不含账号、音频、私人记录或大型运行组件。
+原 manifest.sha256.json 不再代表被替换的文件，请用 latency-update-checksums.json 核对。
+回退时停止组件，再恢复之前备份的对应文件。
 
 验证范围
-个人版 52 项后端检查通过；Windows/Mac 分发源码分别通过 27 项管线、流式、推送、显卡回退及安装检查。
-中文朗读 15 项检查通过；前端分段、500 段局部刷新、推送合并、旧响应隔离、历史切换及重连逻辑检查通过。
-本次对照确认三份应用的识别代码、术语库、场景设置、翻译指令、输出校验及音频切分规则均未改变。
-Windows 个人版按原速回放 24 秒公开美联储音频，RTX 4070、相同模型、4 秒分段，并通过真实本机推送接口接收中文。
-6 段对应 6 次翻译请求，没有因预热增加请求；连接准备约 0.73 秒在采集期间完成。
-从片段提交到推送收到中文首字中位约 2.40 秒，另需音频采集时间；不含 YouTube 采集和浏览器渲染。
-网络和模型响应有波动，这次结果不能证明总延迟每次都会更短，也不承诺固定延迟或几乎同步。
-Mac 本次通过源码逻辑检查，尚未在 Mac 机器上实测延迟。
-Grok/Gemini 本次没有账号实测，不能保证其延迟改善幅度。
+发布流程必须通过 Windows、两种 Mac 的组件检查、管线检查和九项美联储用法集成检查。
+三种 AI 路由使用模拟输出核验；不代表本轮实测了三个真实账号或 YouTube 长时间直播。
+检查报告与 SHA-256 随 GitHub 版本附件提供。Mac 尚未经过 Apple 公证，此版没有新增杀毒认证。
 '''
 
 
@@ -76,7 +54,7 @@ def build(output):
         assert data == (ROOT / 'mac/app' / relative).read_bytes(), relative
         files[relative] = data
     hashes = {name: hashlib.sha256(data).hexdigest() for name, data in files.items()}
-    metadata = {'base_version': '0.3.0-beta', 'version': '0.3.1-beta', 'update': 'overhead-20261001',
+    metadata = {'base_version': '0.3.0-beta', 'version': '0.3.2-beta', 'compatible_base_versions': ['0.3.0-beta', '0.3.1-beta'], 'update': 'fed-usage-20261027',
                 'platforms': ['Windows x64', 'macOS arm64', 'macOS x86_64'], 'files': hashes}
     archive = output / (NAME + '.zip')
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as package:
@@ -92,7 +70,7 @@ def build(output):
     digest = hashlib.sha256(archive.read_bytes()).hexdigest()
     archive.with_suffix('.zip.sha256').write_text(digest + '  ' + archive.name + '\n', encoding='ascii')
     report = {'archive': str(archive), 'bytes': archive.stat().st_size, 'sha256': digest,
-              'checks': ['Fifteen allowlisted app files only', 'Windows and Mac app files byte-identical',
+              'checks': ['Eighteen allowlisted app files only', 'Windows and Mac app files byte-identical',
                          'All compressed entries readable and checksum-verified',
                          'No runtime, account, recordings or model files included']}
     (output / (NAME + '-checks.json')).write_text(json.dumps(report, indent=2), encoding='utf-8')

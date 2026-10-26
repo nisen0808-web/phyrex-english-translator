@@ -133,6 +133,7 @@ def main():
     # Tests use an independent temporary home and never log into a real account.
     command([python, '-B', '-E', '-s', HERE / 'verify.py', root, report_path])
     command([python, '-B', '-E', '-s', HERE.parent / 'tests/check-latency.py', root, output / (name + '-latency-checks.json')])
+    command([python, '-B', '-E', '-s', HERE.parent / 'tests/check-fed-phrasing.py', root, output / (name + '-fed-phrasing-checks.json')])
     command(['node', '--check', root / 'web/app.js'])
     command(['node', HERE.parent / 'tests/latency-ui.cjs', root / 'web/app.js'])
     command(['node', HERE.parent / 'tests/live-updates-ui.cjs', root / 'web/app.js'])

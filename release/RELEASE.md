@@ -1,33 +1,32 @@
-# 低延迟优化测试版 · 0.3.1-beta
+# 美联储用语优化测试版 · 0.3.2-beta
 
-减少英语直播翻译中的程序等待，保留 ChatGPT、Grok、Gemini 选择、556 条美联储与宏观财经术语、中文朗读、逐段复制和 TXT / Word / SRT 导出。每个人继续登录自己的 AI 账号。
+美联储模式新增七组用法提示，让增长、通胀、政策立场和劳动力市场的中文表达更贴近原意。ChatGPT、Grok、Google Gemini 都会使用这些提示；每个人继续登录自己的 AI 账号。
 
-- 本机识别与 AI 翻译流水线并行，自动选择 4–8 秒分段，并保留切点附近尚未识别完的声音。
-- ChatGPT 提前准备官方连接和临时会话，逐字显示中文；复用连接确认登录，减少每段重复启动进程。
-- 译文即时推送，只更新变化的段落。断线后恢复完整状态，推送不可用时保留原轮询方式。
-- 生成中的中文只用于预览；完成并校验后才可复制、朗读和导出。待核实说明仍保留，复制与朗读只取正文。
-- Windows x64 的兼容 NVIDIA 显卡可选启用本机识别加速；不支持时使用 CPU。Mac 本次使用 CPU。
+## 本次变化
 
-识别模型、专业词库和翻译上下文保留，不靠猜测未来讲话或强行缩短分段来提速。网络和 AI 服务响应仍有波动，不承诺零延迟或固定延迟。
+- 区分“增长放缓”和“温和增长”、“通胀放缓”和“通缩”、“招聘放缓”和“裁员”。
+- 区分百分比、百分点、基点以及 by / to / from，保留原文的数字、单位、否定与不确定性。
+- 区分 PCE 支出与 PCE 价格指数，区分同比、环比、年化、实际与名义口径。
+- 仅按当前片段加入有限提示，保持连接预热可复用；通用英语模式不变。
+
+保留 556 条可编辑术语、现有识别模型、连接预热与流式预览、中文朗读、每段复制和 TXT / Word / SRT 导出。不增加翻译请求次数，不改变外部版默认模型或分段设置。提示增加少量输入文本，具体额度由所选 AI 决定。本版没有新的速度提升承诺，也不包含个人版高消耗竞速或声纹实验。
 
 ## 下载与更新
 
-**首次安装：** Windows 下载 Windows-x64-Compact.7z；Mac 按芯片下载 macOS-arm64.zip 或 macOS-x86_64.zip。Source code 不包含运行组件和语音模型。
+**已有 0.3.0 或 0.3.1 完整版：** 下载 `PhyrexNi-0.3.2-Windows-Mac-App-Update.zip`，Windows 和两种 Mac 共用。停止组件并备份后，把全部应用文件合并到原组件目录；新增的 `fed_phrasing.py` 必须复制。保留 `user-data`、`.runtime`，重启、刷新页面并重新加载扩展。底部应显示 **0.3.2 BETA**。这个包不能独立运行，也不能用于个人本地版。
 
-**已有 0.3.0 完整版：** 下载 `PhyrexNi-0.3.1-Windows-Mac-App-Update.zip`，三个平台共用，小体积、不含大型运行组件。停止组件并备份后，按包内说明合并文件，保留 `user-data` 与 `.runtime`，重启并刷新页面。更新后在扩展管理页重新加载原扩展。
+**已有 0.2.x 完整版：** 下载对应系统和芯片的 `PhyrexNi-AI-0.3.2-…-Update.zip`，按包内说明合并隐藏的 `.runtime/ai`；不要使用共用轻量包跨越 0.2.x。
 
-**已有 0.2.x 完整版：** 下载对应系统和芯片的 `PhyrexNi-AI-0.3.1-…-Update.zip`，包含三 AI 组件，复用原语音模型。按说明合并隐藏的 `.runtime/ai`；不要用小体积 App 更新包跨越 0.2.x。
+**首次使用：** 下载 Windows x64、Mac Apple 芯片或 Mac Intel 完整包。Windows 使用 7z，Mac 使用 ZIP。Source code 不包含运行组件或语音模型。Mac 要求 macOS 14+，芯片必须匹配。
 
-**可选 NVIDIA 加速：** Windows 用户先停止组件，再运行 `Enable-GPU.cmd`。兼容性检查通过后首次下载约 1.1 GB 的固定版本 NVIDIA 库，并校验 SHA-256。程序不改系统驱动；没有兼容显卡不下载。需至少 4 GB 可用空间。重新启动后页面应显示“显卡加速”。
+## 验证范围
 
-## 数据与验证范围
+发布门禁包含三平台原生组件、独立账号目录、本机服务、重新解压检查，以及每个平台的 27 项管线检查、12 项 AI 检查、15 项朗读检查、新增 9 项美联储用法集成检查。三种 AI 的新提示路由采用模拟输出验证，不调用真实模型。检查报告和 SHA-256 随附件发布。
 
-音频在本机识别；英文、短上下文与相关术语发给用户选定的官方 AI 服务。应用记录仅保存中文。Grok/Gemini 官方组件可能写临时缓存，本工具在翻译后及下次启动时清理；异常退出可能暂留缓存。
+同份用法模块在个人版做过 17 组订阅账号文本对照，其中 16 组清晰输入未发现语义偏差；一组含糊听写仍有歧义，应保留待核实。该样本不是所有音频准确率保证，也不能证明延迟改善。外部版新增测试核对提示、预热与三 AI 接入，不能替代真实 YouTube 长时间端到端测试。
 
-发布必须通过 Windows、Apple 芯片 Mac、Intel Mac 的原生组件与重新解压检查，另有各平台 27 项管线、流式、显卡回退、安装和 HTTP 推送检查，12 项 AI 路由与账号隔离检查，15 项朗读检查。前端检查包含 500 段局部刷新、断线重连、历史切换和旧响应隔离。检查报告与 SHA-256 均在附件中。
+本轮未实测真实 Grok/Google 登录、额度与模型译文，也未实测 Mac 浏览器朗读和真实 AI 延迟。Mac 尚未经过 Apple 公证，此版没有新增杀毒认证。仍为 GitHub 公开测试版，尚未上架扩展商店。
 
-Windows 使用真实 ChatGPT 账号按原速回放 24 秒美联储音频，6 段对应 6 次翻译，预热没有额外翻译请求。单次测得片段提交至本机推送收到中文首字的中位数约 2.40 秒，另需音频采集时间，不含 YouTube 采集和浏览器渲染。该样本不能代表其他网络、显卡或长期直播表现。
+音频在本机识别，英文及相关上下文发送给所选 AI 官方服务；应用记录仅保存中文。Grok/Gemini 临时缓存清理的原有说明见 [隐私说明](https://nisen0808-web.github.io/phyrex-english-translator/privacy.html)。
 
-**真实 Grok/Google 授权、额度和模型译文，以及 Mac 的真实 AI 延迟和浏览器朗读，尚未完成本轮实测。** 原生构建检查不是这些环节的证明。Mac 尚未经过 Apple 公证；此版没有新增杀毒认证。仍为 GitHub 公开测试版，尚未上架扩展商店。
-
-[安装说明](https://github.com/nisen0808-web/phyrex-english-translator#首次使用) · [AI 账号说明](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/AI_PROVIDERS.md) · [验证范围](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/VERIFICATION.md) · [反馈问题](https://github.com/nisen0808-web/phyrex-english-translator/issues)
+[安装说明](https://github.com/nisen0808-web/phyrex-english-translator#首次使用) · [验证范围](https://github.com/nisen0808-web/phyrex-english-translator/blob/main/VERIFICATION.md) · [反馈问题](https://github.com/nisen0808-web/phyrex-english-translator/issues)

@@ -1,4 +1,5 @@
 from terminology import translation_glossary
+from fed_phrasing import augment_prompt
 """Use the user's official Codex CLI; no API key or saved English transcript."""
 import json
 import os
@@ -114,7 +115,7 @@ chinese 不得包含英文原句、前言或 Markdown 标记。常用缩写如 F
     if profile == 'fed':
         instruction += "\n优先参考完整短语的译法，术语括号内是语境提示，不要照搬到译文。严格区分劳动参与率与就业人口比率、主动离职与全部离职、失业与不在劳动力人口之列、同比与年化环比、名义值与实际值。PCE 须区分消费支出和物价指标；超级核心通胀不擅自指定剔除范围。市场隐含值不等于美联储承诺。"
     payload = json.dumps({'current': source, 'previous': context[-1800:], 'glossary': translation_glossary(source, context, glossary, profile)}, ensure_ascii=False)
-    return instruction + '\n资料 JSON：\n' + payload
+    return augment_prompt(instruction + '\n资料 JSON：\n' + payload, profile)
 
 
 def validate_result(result):

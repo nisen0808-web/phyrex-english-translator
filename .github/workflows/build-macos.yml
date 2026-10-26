@@ -91,6 +91,8 @@ jobs:
           node tests/live-updates-ui.cjs mac/app/web/app.js
           node tests/read-aloud.cjs windows/app/web/app.js dist-updates/Windows-read-aloud-checks.json
           node tests/read-aloud.cjs mac/app/web/app.js dist-updates/Mac-read-aloud-checks.json
+          python3 -B tests/check-fed-phrasing.py windows/app dist-updates/Windows-fed-phrasing-checks.json
+          python3 -B tests/check-fed-phrasing.py mac/app dist-updates/Mac-fed-phrasing-checks.json
           python3 release/build_latency_update.py dist-updates
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -104,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -123,11 +125,20 @@ jobs:
           set -euo pipefail
           cd artifacts
           sha256sum -c *.sha256
-          tag=v0.3.1-beta
+          tag=v0.3.2-beta
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'Release already exists; refusing to overwrite it.'
             exit 1
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 低延迟优化测试版 0.3.1' --notes-file ../release/RELEASE.md
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · 美联储用语优化测试版 0.3.2' --notes-file ../release/RELEASE.md
           gh release upload "$tag" ./*.7z ./*.zip ./*.sha256 ./*checks.json
+          mkdir verify-downloads
+          gh release download "$tag" --dir verify-downloads
+          (
+            cd verify-downloads
+            sha256sum -c ../*.sha256
+          )
+          for report in ./*checks.json ./*.sha256; do
+            cmp "$report" "verify-downloads/$(basename "$report")"
+          done
           gh release edit "$tag" --draft=false --prerelease

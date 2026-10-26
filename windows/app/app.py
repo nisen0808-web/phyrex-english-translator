@@ -439,7 +439,7 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == '/api/state':
                 return self.send(self.engine.state(args.get('session', [None])[0]))
             if parsed.path == '/api/config':
-                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.1-beta', 'token': self.token,
+                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.2-beta', 'token': self.token,
                                   'providers': PROVIDERS,
                                   'language': 'en', 'glossary': self.engine.glossary,
                                   'glossary_info': json.loads((ROOT / 'glossary-info.json').read_text(encoding='utf-8')),
