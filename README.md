@@ -2,29 +2,31 @@
 
 把英语直播、回放和访谈翻译成中文。优先支持美联储与宏观财经内容，也可选择通用英语场景。
 
-**0.3.1-beta · Windows 10/11 x64 / macOS 14+ · Chrome / Edge · 仅英语 → 中文**
+**0.3.2-beta · Windows 10/11 x64 / macOS 14+ · Chrome / Edge · 仅英语 → 中文**
 
 新增 **ChatGPT、Grok、Google Gemini** 三种翻译 AI，分别登录自己的账号。保留中文朗读：中文播放时屏蔽英文外放，英文音轨继续识别。
 
-本次更新减少程序等待：识别与翻译并行、ChatGPT 连接预热和逐字预览、译文即时推送、页面局部刷新，以及可选 NVIDIA 本机识别加速。保留原识别模型、专业词库和翻译上下文；实际延迟仍受音频分段、网络和 AI 服务影响。验证边界见 [验证记录](VERIFICATION.md)。
+本次新增七组按片段匹配的美联储用法提示，区分增长放缓与温和增长、通胀放缓与通缩、招聘放缓与裁员，以及基点、PCE、统计口径。通用英语模式不变，不增加翻译请求次数；提示会增加少量输入文本。本版不承诺新的延迟改善。
+
+保留现有的减少等待功能：识别与翻译并行、ChatGPT 连接预热和逐字预览、译文即时推送、页面局部刷新，以及可选 NVIDIA 本机识别加速。保留原识别模型、专业词库和翻译上下文；实际延迟仍受音频分段、网络和 AI 服务影响。验证边界见 [验证记录](VERIFICATION.md)。
 
 ## 下载
 
-- [Windows 完整包 · 7z](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/Fed-English-Translator-0.3.1-beta-Windows-x64-Compact.7z)
-- [Mac 完整包 · Apple 芯片（M 系列）](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/Fed-English-Translator-0.3.1-beta-macOS-arm64.zip)
-- [Mac 完整包 · Intel](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/Fed-English-Translator-0.3.1-beta-macOS-x86_64.zip)
+- [Windows 完整包 · 7z](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/Fed-English-Translator-0.3.2-beta-Windows-x64-Compact.7z)
+- [Mac 完整包 · Apple 芯片（M 系列）](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/Fed-English-Translator-0.3.2-beta-macOS-arm64.zip)
+- [Mac 完整包 · Intel](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/Fed-English-Translator-0.3.2-beta-macOS-x86_64.zip)
 
-**已有 0.3.0 完整版：** 使用 [Windows / Mac 共用轻量更新包 · 约 55 KB](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/PhyrexNi-0.3.1-Windows-Mac-App-Update.zip)。停止组件并备份后，按包内说明合并应用文件，保留 `user-data` 与 `.runtime`，重启、刷新页面并重新加载扩展。此包不能独立运行，也不适用于 0.2.x 或个人本地版。
+**已有 0.3.0 或 0.3.1 完整版：** 使用 [Windows / Mac 共用轻量更新包 · 约 60 KB](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/PhyrexNi-0.3.2-Windows-Mac-App-Update.zip)。停止组件并备份后，按包内说明合并应用文件，保留 `user-data` 与 `.runtime`，重启、刷新页面并重新加载扩展。此包不能独立运行，也不适用于 0.2.x 或个人本地版。
 
 **已有 0.2.x 完整版：** 使用对应系统和芯片的三 AI 更新包，复用原语音模型：
 
-- [Windows x64 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/PhyrexNi-AI-0.3.1-Windows-x64-Update.zip)
-- [Mac · Apple 芯片 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/PhyrexNi-AI-0.3.1-macOS-arm64-Update.zip)
-- [Mac · Intel 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.1-beta/PhyrexNi-AI-0.3.1-macOS-x86_64-Update.zip)
+- [Windows x64 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/PhyrexNi-AI-0.3.2-Windows-x64-Update.zip)
+- [Mac · Apple 芯片 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/PhyrexNi-AI-0.3.2-macOS-arm64-Update.zip)
+- [Mac · Intel 三 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.2-beta/PhyrexNi-AI-0.3.2-macOS-x86_64-Update.zip)
 
 更新包不能单独运行。先结束采集、运行 Stop 脚本并备份，再按包内说明合并文件，包括隐藏的 `.runtime/ai`。保留 `user-data` 和原语音组件；不熟悉文件合并时请选择完整包。
 
-[版本说明、完整附件与 SHA-256](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.1-beta) · [安装与下载页面](https://nisen0808-web.github.io/phyrex-english-translator/) · [隐私说明](docs/privacy.html)
+[版本说明、完整附件与 SHA-256](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.2-beta) · [安装与下载页面](https://nisen0808-web.github.io/phyrex-english-translator/) · [隐私说明](docs/privacy.html)
 
 首次使用请选择完整包。GitHub 自动提供的 **Source code** 不包含语音模型与本机运行组件。
 
@@ -54,7 +56,7 @@ Mac 包尚未经过 Apple 公证，首次打开可能出现开发者验证提示
 
 ## 可选显卡加速
 
-0.3.1 组件包含 `Enable-GPU.cmd`，支持 **Windows x64 + 兼容 NVIDIA 显卡**。仍在使用 0.3.0 的用户请先安装上面的轻量更新包；只有浏览器扩展不能启用 GPU。
+0.3.2 组件包含 `Enable-GPU.cmd`，支持 **Windows x64 + 兼容 NVIDIA 显卡**。仍在使用 0.3.0 的用户请先安装上面的轻量更新包；只有浏览器扩展不能启用 GPU。
 
 1. 结束采集并等待保存，运行 `Stop.cmd`。
 2. 双击组件文件夹里的 `Enable-GPU.cmd`。安装器先检测显卡，不兼容时不会下载。
@@ -88,7 +90,7 @@ Mac 包尚未经过 Apple 公证，首次打开可能出现开发者验证提示
 
 这是 GitHub 公开测试版，尚未上架 Chrome / Edge 商店。需要浏览器扩展配合本机组件。ChatGPT 需要 Codex 权限，Grok 需要 Grok Build 权限；Gemini 使用 Google 登录。各家额度及可用模型以账号为准，不自动切换 AI。[AI 选择与账号说明](AI_PROVIDERS.md)
 
-三个系统完整包在原生发布环境中通过组件运行、独立账号、页面服务和重新解压检查；每个平台另有 27 项管线与推送检查、12 项 AI 检查和 15 项朗读检查。前端验证包含 500 段局部刷新、断线重连和历史切换。真实 Grok/Google 账号授权、账号额度及实际模型译文尚未实测。Windows 浏览器本机试听与 Web Audio 音轨分离也已检查。真实 YouTube 长时间直播、用户电脑的中文声音、Mac 浏览器朗读与物理扬声器效果仍需试用。
+三个系统完整包在原生发布环境中通过组件运行、账号目录隔离、页面服务和重新解压检查；每个平台另有 27 项管线与推送检查、12 项 AI 检查、15 项朗读检查和新增 9 项美联储用法检查。前端验证包含 500 段局部刷新、断线重连和历史切换。真实 Grok/Google 账号授权、账号额度及实际模型译文尚未实测。Windows 浏览器本机试听与 Web Audio 音轨分离的记录来自旧版验证，本轮没有重做浏览器试听。真实 YouTube 长时间直播、用户电脑的中文声音、Mac 浏览器朗读与物理扬声器效果仍需试用。
 
 数字、否定语气和专有名词出现“待核实”时，请结合原音判断。[完整验证范围](VERIFICATION.md)
 
