@@ -1,3 +1,13 @@
+# 0.3.3-beta 发布验证 · 2026-10-27
+
+三个平台必须通过原生组件、本机服务、重新解压及离线回归检查，具体报告和 SHA-256 见 [0.3.3-beta 附件](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.3-beta)。Claude 对最终修订版的独立复核因额度或请求频率受限未完成。Claude API 测试使用模拟响应，不调用真实账号或模型；真实 Claude API 密钥、账单和译文，以及 Grok/Google 真实账号、长时间 YouTube 直播、Mac 浏览器物理朗读均未完成本轮实测。未新增杀毒认证，Mac 未经过 Apple 公证。
+
+轻量包适用于已安装的 0.3.0、0.3.1 或 0.3.2 外部版。停止组件并备份后按包内说明合并；保留 user-data 和 .runtime。新增 claude_api.py 和 provider_auth.py 均在允许列表及散列清单中。Claude API 密钥由用户主动输入，只在运行中的本机组件内存保留，重启后需要重新输入；API 按用户自己的额度或账单单独计费。
+
+下方为旧版验证记录，旧音频和浏览器测试不是本轮端到端测试。
+
+---
+
 # 0.3.2-beta 发布验证 · 2026-10-27
 
 Windows x64、Apple 芯片 Mac、Intel Mac 的原生构建、运行组件、账号目录隔离、本机服务与重新解压检查通过。每个平台通过 27 项管线、12 项 AI、15 项朗读检查，新增 9 项美联储用法集成检查。实际逐项报告及 SHA-256 见 [0.3.2-beta 附件](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.2-beta)。
