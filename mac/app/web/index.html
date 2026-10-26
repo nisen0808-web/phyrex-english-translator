@@ -7,7 +7,8 @@
   <div class="layout">
     <aside>
       <section class="card"><div class="eyebrow">开始一场翻译</div><h2>播放英语，共享声音</h2><p class="muted">支持英语直播、回放和访谈。在 Chrome 或 Edge 播放视频，选择播放标签页并勾选“共享标签页音频”。</p>
-        <label for="provider">翻译 AI</label><select id="provider" disabled><option value="chatgpt">ChatGPT</option><option value="grok">Grok</option><option value="gemini">Google Gemini</option></select><p id="providerNotice" class="footnote" role="status">选择 AI 后，登录你自己的对应账号。</p>
+        <label for="provider">翻译 AI</label><select id="provider" disabled><option value="chatgpt">ChatGPT</option><option value="grok">Grok</option><option value="gemini">Google Gemini</option><option value="claude">Claude API · 独立计费</option></select><p id="providerNotice" class="footnote" role="status">选择 AI 后，登录你自己的对应账号。</p>
+        <div id="claudeKeyArea" hidden><label for="claudeKey">自己的 Anthropic API 密钥</label><input id="claudeKey" type="password" autocomplete="new-password" spellcheck="false" maxlength="512"><label for="claudeWorkspace">工作区 ID（可选）</label><input id="claudeWorkspace" type="text" autocomplete="off" spellcheck="false" maxlength="128" placeholder="未限定工作区的密钥可能需要"><button id="setClaudeKey" type="button" class="secondary">使用此密钥</button><button id="clearClaudeKey" type="button" class="link">清除密钥</button><p class="footnote claude-cost">Claude API 按你的 API 额度或账单计费，与 Claude 订阅额度分开；输入、输出和模型思考均可能计费。部分 Max / Team 账号可领取单独 API 额度。密钥只暂存于本机内存，重启组件后需重新填写。输入英文和上下文会发送给 Anthropic。<a href="https://platform.claude.com/docs/en/about-claude/pricing" target="_blank" rel="noopener noreferrer">查看官方定价</a></p></div>
         <label for="profile">内容场景 · 英语输入</label><select id="profile"><option value="fed">美联储 / 财经 · 默认</option><option value="general">通用英语 · 新闻、访谈、课程</option></select>
         <label for="title">记录名称</label><input id="title" value="美联储发布会" maxlength="100">
         <label for="model">翻译模式</label><select id="model"><option value="gpt-6-luna">快速 · 日常跟看</option><option value="gpt-6-sol">精细 · 更高额度消耗</option></select>
@@ -42,6 +43,6 @@
       <p class="bottom-note">点击每段右上角的复制图标可单独复制中文，标记“待核实”的段落也可复制；复制内容不含时间戳和待核实说明。字幕时间从本次采集开始计算。</p>
     </div>
   </div>
-  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.3.2 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
+  <footer>@PhyrexNi · FED LIVE TRANSLATOR · 0.3.3 BETA <span>本地运行 · 自己的账号 · 中文记录</span></footer>
 </main><script src="/app.js" defer></script>
 </body></html>

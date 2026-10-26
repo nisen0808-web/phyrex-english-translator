@@ -9,6 +9,7 @@ import threading
 import time
 
 import bridge
+import claude_api
 from runtime import ROOT, USER_DIR
 
 TranslationError = bridge.TranslationError
@@ -17,13 +18,14 @@ PROVIDERS = {
     'chatgpt': {'label': 'ChatGPT', 'models': {'gpt-6-luna': '快速 · 日常跟看', 'gpt-6-sol': '精细 · 更高额度消耗'}, 'login_label': '登录自己的 ChatGPT', 'notice': '通过官方 Codex 使用自己的 ChatGPT 账号；可用模型及额度以账号为准。'},
     'grok': {'label': 'Grok', 'models': {'auto': '自动 · 使用账号默认模型'}, 'login_label': '登录自己的 Grok', 'notice': '通过官方 Grok Build 使用自己的 Grok 账号；账号需要具有 Grok Build 使用权限。'},
     'gemini': {'label': 'Google Gemini', 'models': {'auto': '自动 · 使用账号可用模型'}, 'login_label': '登录自己的 Google 账号', 'notice': '通过官方 Gemini CLI 使用自己的 Google 账号；部分公司或学校账号需要额外配置，建议先用个人账号。'},
+    'claude': {'label': 'Claude API', 'models': {'claude-sonnet-5-5': 'Sonnet · 默认', 'claude-haiku-5-5': 'Haiku · 单价较低'}, 'login_label': '设置 Claude API 密钥', 'notice': '使用自己的 Anthropic API 密钥，按 API 额度或账单计费，与 Claude 订阅限额分开。密钥仅保留在本机组件内存，重启后需重新填写。'},
 }
 LOCKS = {name: threading.RLock() for name in PROVIDERS}
 
 
 def validate_provider(provider):
     if provider not in PROVIDERS:
-        raise ValueError('请选择 ChatGPT、Grok 或 Google Gemini。')
+        raise ValueError('请选择 ChatGPT、Grok、Google Gemini 或 Claude API。')
     return provider
 
 
@@ -54,6 +56,10 @@ def cli(provider):
 
 
 def mark_login(provider, ready):
+    if provider == 'claude':
+        if not ready:
+            claude_api.clear_api_key()
+        return
     folder = home(provider)
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / 'login-state.json'
@@ -66,6 +72,9 @@ def login_status(provider='chatgpt'):
     validate_provider(provider)
     if provider == 'chatgpt':
         return bridge.login_status()
+    if provider == 'claude':
+        ready = claude_api.has_api_key()
+        return {'ready': ready, 'installed': True, 'message': 'Claude API 密钥已设置；首次翻译时验证权限与额度。' if ready else '请填写自己的 Claude API 密钥。'}
     try:
         cli(provider)
     except ValueError as exc:
@@ -182,6 +191,8 @@ def translate(source, context, glossary, model=None, profile='fed', provider='ch
     validate_model(provider, model)
     if provider == 'chatgpt':
         return bridge.translate(source, context, glossary, model, profile, on_partial=on_partial, session_id=session_id)
+    if provider == 'claude':
+        return claude_api.translate(source, context, glossary, model, profile)
     status = login_status(provider)
     if not status['ready']:
         raise TranslationError(status['message'], 'auth')

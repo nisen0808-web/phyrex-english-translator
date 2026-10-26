@@ -1,19 +1,20 @@
-# 选择翻译 AI · 0.3.1-beta
+# 选择翻译 AI · 0.3.3-beta
 
-外部版可选 ChatGPT、Grok 和 Google Gemini。先选择 AI，再点击对应的登录按钮，使用自己的账号。不会要求你向发布者提供密码、Cookie 或 API 密钥。
+外部版可选 ChatGPT、Grok、Google Gemini 和 Claude API。前三项使用用户自己的服务账号；Claude 选项使用用户主动提供的 Anthropic Console API 密钥。不会向发布者提供密码、Cookie 或密钥。
 
-| 选择 | 官方本机组件 | 账号要求 |
+| 选择 | 使用方式 | 账号要求和费用 |
 | --- | --- | --- |
-| ChatGPT | OpenAI Codex 0.158.0 | 账号需要有 Codex 权限；保留快速和精细两种翻译模式。 |
-| Grok | Grok Build 1.0.44 | 账号需要有 Grok Build 权限；普通 Grok 网页可用不代表一定能使用 Build。模型由账号默认设置决定。 |
-| Google Gemini | Gemini CLI 0.61.0 | 登录自己的 Google 账号，模型由账号可用范围决定。个人账号较适合首次测试，部分公司或学校账号需要额外项目配置。 |
+| ChatGPT | 官方 Codex 0.158.0 | 登录自己的 ChatGPT，账号需要 Codex 权限。 |
+| Grok | 官方 Grok Build 1.0.44 | 登录自己的 Grok，账号需要 Grok Build 权限；网页能用不代表有 Build 权限。 |
+| Google Gemini | 官方 Gemini CLI 0.61.0 | 登录自己的 Google 账号；部分公司或学校账号可能需要额外配置。 |
+| Claude API | Anthropic 官方 Messages API | 用户自行提供 Anthropic Console API 密钥，按 API 额度或账单独立计费，不使用 Claude 聊天订阅限额。 |
 
-三者的订阅、使用权限和额度分别计算，以官方账号界面为准。本工具不自动切换 AI、不内置发布者账号，也不读取已有 API 密钥。
+选择 Claude API 后，在本机页面输入自己的 API 密钥。未限定工作区的密钥可能还需要填写对应的工作区 ID。Claude API 使用直接连接，不读取 HTTP_PROXY 或 HTTPS_PROXY 环境代理；若无法连接，请检查网络。密钥只保留在本机运行中的组件内存，可在页面清除，关闭组件后需要重新输入。输入密钥不会触发付费测试；开始翻译后每段请求将产生 API 用量，具体额度、价格和账单由 Anthropic Console 决定。不要把密钥发给发布者或其他人。
 
-同一场采集固定使用开始时选择的 AI。先结束采集、处理完已提交片段，再切换；译文、词库、复制、导出和中文朗读共用。额度不足时保留已完成的中文，提示等待或重新登录后继续。Grok 和 Gemini 的登录标记只表示此前完成过授权，实际权限和额度在翻译时检查。
+各家权限和额度分别计算；工具不自动切换 AI，不使用发布者账号，也不自动读取已有 API 密钥。Claude API 和 Claude 网页订阅是独立的服务及计费渠道，请在使用前了解自己的 API 账单设置。
 
-语音在本机识别。识别出的英文、短上下文及相关术语发给所选 AI 的服务。应用记录只保存中文；Grok/Gemini 官方组件可能生成临时会话缓存，本工具在每次翻译结束和下次启动时清理自己的临时目录。异常退出时缓存可能暂时留在本机，不能保证英文从不落盘。详见 PRIVACY.md。
+同一场采集固定使用开始时选择的 AI。切换前结束采集并等待已提交片段处理完成。语音在本机识别，识别出的英文、短上下文及相关术语发给所选服务；中文记录保存在本机。Grok/Gemini 官方组件可能写入临时缓存，异常退出时可能暂留。详见 PRIVACY.md。
 
-组件校验、无账号启动、Gemini 登录协议初始化、模拟译文路由和错误处理经过自动检查。真实 Grok/Google 授权、账号额度及实际模型翻译仍需用户实测；这不是对所有账号均可用的保证。
+自动检查使用模拟网络响应；真实 Claude API 密钥、额度、模型翻译，以及 Grok/Google 实际账号授权仍需用户自行试用，不保证所有账号均可用。Mac 浏览器朗读和真实 YouTube 长时间直播尚未完成本轮实测。
 
-官方说明：[Grok Build](https://docs.x.ai/build/overview)、[Grok 无界面调用](https://docs.x.ai/build/cli/headless-scripting)、[Gemini 账号登录](https://geminicli.com/docs/get-started/authentication/)、[Gemini 无界面调用](https://geminicli.com/docs/cli/headless/)。
+官方说明：[Anthropic API 入门](https://platform.claude.com/docs/en/get-started)、[Grok Build](https://docs.x.ai/build/overview)、[Gemini 账号登录](https://geminicli.com/docs/get-started/authentication/)。

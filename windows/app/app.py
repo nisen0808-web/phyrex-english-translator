@@ -18,6 +18,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 import zipfile
 from xml.sax.saxutils import escape
+import claude_api
 
 from runtime import ROOT, USER_DIR, instance_id, acquire_instance_lock, prepare
 CONFIG = prepare()
@@ -439,7 +440,7 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == '/api/state':
                 return self.send(self.engine.state(args.get('session', [None])[0]))
             if parsed.path == '/api/config':
-                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.2-beta', 'token': self.token,
+                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.3-beta', 'token': self.token,
                                   'providers': PROVIDERS,
                                   'language': 'en', 'glossary': self.engine.glossary,
                                   'glossary_info': json.loads((ROOT / 'glossary-info.json').read_text(encoding='utf-8')),
@@ -476,10 +477,31 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '0'))
             if length < 0 or length > RATE * 2 * 35 + 4096:
                 return self.send({'error': '请求过大。'}, 413)
+            if parsed.path == '/api/claude-key' and length > 2048:
+                return self.send({'error': '密钥请求过大。'}, 413)
             body = self.rfile.read(length)
             if parsed.path == '/api/audio':
                 return self.send(self.engine.accept(args['session'][0], int(args['seq'][0]), float(args['start'][0]), body))
             obj = json.loads(body or b'{}')
+            if parsed.path == '/api/claude-key':
+                origin = self.headers.get('Origin', '')
+                if origin not in {f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}'} or self.headers.get_content_type() != 'application/json' or length > 2048:
+                    return self.send({'error': '仅允许本机页面设置密钥。'}, 403)
+                with self.engine.lock:
+                    if self.engine.provider != 'claude':
+                        raise ValueError('请先选择 Claude API。')
+                    active = self.engine.pending or any(s['status'] in ('recording', 'draining') for s in self.engine.sessions.values())
+                    if active and self.engine.problem.get('kind') != 'auth':
+                        raise ValueError('请先结束采集并等待处理完成，再更换密钥。')
+                    if obj.get('clear') is True:
+                        claude_api.clear_api_key()
+                    else:
+                        try:
+                            claude_api.set_api_key(obj.get('key'), obj.get('workspace_id', ''))
+                        except ValueError:
+                            self.engine.refresh_login()
+                            raise
+                return self.send(self.engine.refresh_login())
             if parsed.path == '/api/start':
                 return self.send({'id': self.engine.start(obj.get('title', ''), obj.get('model', 'gpt-6-luna'), obj.get('profile', 'fed'), obj.get('provider'))})
             if parsed.path == '/api/provider':
