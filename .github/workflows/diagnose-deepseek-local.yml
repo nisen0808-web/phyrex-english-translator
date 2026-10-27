@@ -1,68 +1,21 @@
-name: Diagnose DeepSeek local transport (no publish)
-
+name: Diagnose Ubuntu system certificate
 on:
-  workflow_dispatch:
   push:
     branches: [diagnose-034-local-tls]
-
 permissions:
   contents: read
-
 jobs:
-  diagnose:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: windows-latest
-            arch: x64
-          - runner: macos-14
-            arch: arm64
-          - runner: macos-15-intel
-            arch: x86_64
-          - runner: ubuntu-latest
-            arch: x64
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
-    env:
-      DIAG_ARCH: ${{ matrix.arch }}
+  system-certifi:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
-        with:
-          python-version: '3.12'
-      - name: Prepare hash-locked packaged interpreter and certificate files
+      - name: Inspect system Python and certificate location
         shell: bash
         run: |
-          set -o pipefail
-          python .github/diagnostics/diagnose_prepare_runtime.py 2>&1 | tee "$RUNNER_TEMP/prepare-runtime.log"
-      - name: Reproduce test with source and packaged interpreters
+          python3 -c "import sys,certifi; print('SYSTEM_PYTHON',sys.executable); print('CERTIFI_MODULE',certifi.__file__); print('CERTIFI_CA',certifi.where())"
+      - name: Reproduce source-only Linux check
         shell: bash
         run: |
-          set -u
-          set -o pipefail
-          export DIAG_MODE=source
-          python .github/diagnostics/diagnose_deepseek_transport.py 2>&1 | tee "$RUNNER_TEMP/source-diagnostic.log"
-          source_exit=${PIPESTATUS[0]}
-          portable=$(python -c "import json,os,pathlib;print(json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'phyrex-diag-runtime/paths.json').read_text())['portable_python'] or '')")
-          portable_exit=0
-          if [[ -n "$portable" ]]; then
-            export DIAG_MODE=packaged
-            "$portable" -B -X utf8 .github/diagnostics/diagnose_deepseek_transport.py 2>&1 | tee "$RUNNER_TEMP/packaged-diagnostic.log"
-            portable_exit=${PIPESTATUS[0]}
-          fi
-          printf 'source_diagnostic_exit=%s packaged_diagnostic_exit=%s\n' "$source_exit" "$portable_exit"
-          [[ "$source_exit" -eq 0 && "$portable_exit" -eq 0 ]]
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
-        with:
-          name: local-diagnostic-${{ matrix.runner }}-${{ matrix.arch }}
-          path: |
-            ${{ runner.temp }}/prepare-runtime.log
-            ${{ runner.temp }}/source-diagnostic.log
-            ${{ runner.temp }}/packaged-diagnostic.log
-          if-no-files-found: warn
-          retention-days: 7
-
+          python3 -B -X utf8 tests/check-deepseek-api.py windows/app /tmp/phyrex-system-certifi-report.json
