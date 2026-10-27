@@ -1,5 +1,6 @@
 """Real local child processes and a local mock HTTP server, never DeepSeek."""
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -11,6 +12,7 @@ import tempfile
 import threading
 import time
 import traceback
+import types
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import Mock, patch
@@ -25,6 +27,26 @@ import certifi
 
 KEY = 'sk-local-fixture-not-a-real-key-12345'
 BODY = b'{"prompt":"local fixture"}'
+
+
+def _stage_certifi(packages, source, *, require_packaged, is_linux):
+    """Copy native certifi unchanged, or isolate an external Linux system CA."""
+    source_file = getattr(source, '__file__', None)
+    source_root = Path(source_file).resolve().parent if source_file else None
+    source_ca = Path(source.where()).resolve()
+    external_ca = source_root is None or not source_ca.is_relative_to(source_root)
+    target = packages / 'certifi'
+    if is_linux and not require_packaged and external_ca:
+        target.mkdir()
+        shutil.copyfile(source_ca, target / 'cacert.pem')
+        (target / '__init__.py').write_text(
+            'from pathlib import Path\ndef where():\n return str(Path(__file__).with_name("cacert.pem"))\n',
+            encoding='utf-8')
+        return 'isolated-system-ca'
+    if source_root is None:
+        raise RuntimeError('A native test must use the actual packaged certifi module.')
+    shutil.copytree(source_root, target, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+    return 'copied-package'
 # Public, throwaway self-signed localhost certificate.  This key is only a
 # deterministic test fixture; it is not a user credential or deployment key.
 TEST_CERT = "-----BEGIN CERTIFICATE-----\nMIIDJTCCAg2gAwIBAgIUDYSfcFuHHptJnEaltUsqZYZ6q+4wDQYJKoZIhvcNAQEL\nBQAwFDESMBAGA1UEAwwJbG9jYWxob3N0MB4XDTI2MTAyNzEyNDUzN1oXDTM2MTAy\nNDEyNDUzN1owFDESMBAGA1UEAwwJbG9jYWxob3N0MIIBIjANBgkqhkiG9w0BAQEF\nAAOCAQ8AMIIBCgKCAQEAvrFzy+FZpagUYhqKKSj5h8ARYKeBG/bJI9bWNRKuCYKO\nyLfJv/MVsKy87o6HiqqaRArKCINp/Mn0oKmir+gQ0WGwiEJXoYSIznzvtkU52Is3\nyXqnguf7RSqcOr9HJySTPU7jbl0U5/yJ7BG+3GoZmNvE0fV+wVMsEQMec6cJwXfo\nbGT+1js9LvmBvX2C5QYC1dIPz5/n/5INy0iYgq//WaF3nj0Qr8wvGjQftPudivFM\nsjVMwCOQqslLzzakQ2K3mIY+/MCkDKymoWOK33i0rUOggqBfbViPjInUTdt9oC7s\n+Y6T7aZahyiZ3DtjwKyDgvyDGflU3e+WDQ6ypk3ZqwIDAQABo28wbTAdBgNVHQ4E\nFgQUnaa6ETUCnfl5SQU4iiLS3Kw51lAwHwYDVR0jBBgwFoAUnaa6ETUCnfl5SQU4\niiLS3Kw51lAwDwYDVR0TAQH/BAUwAwEB/zAaBgNVHREEEzARgglsb2NhbGhvc3SH\nBH8AAAEwDQYJKoZIhvcNAQELBQADggEBAD0F5osWQLIzP3jyMXsv7czNYXbsaxUJ\n42YsdTksZa9YkHj2M4XvEB1TuWYtYPy0jV3owTt6Asf24IZ0B7uIztYqSg6dplf2\njapxlv0KcJqStAMXzFhndacekYetuRjBRucVDokMBY250nKOloQ+Hh28ADLdz8eY\nCNZ8MICqlAvNduuee3xV4HOSAuKoSI1yll8mNEON9s8mQ8namF9Wh4h4om8QRCXi\nrBt2mzpMiefmNVdkk9FvyYA2gYYVv7uPV1iBSkIV4RdO60U4fhCBiziqLo7+EIaI\n4beENoUj3aH43NVWgg6SWOra/li49I15dgBAvFRVQmeaZD5xLkrVMFM=\n-----END CERTIFICATE-----\n\r\n"
@@ -88,6 +110,39 @@ class ReapGuardTests(unittest.TestCase):
             self.assertFalse(slot.locked())
 
 
+class CertifiStagingTests(unittest.TestCase):
+    def test_external_linux_ca_uses_isolated_copy_but_native_keeps_real_package(self):
+        with tempfile.TemporaryDirectory(prefix='deepseek-certifi-layout-') as folder:
+            root = Path(folder)
+            source = root / 'source-certifi'
+            source.mkdir()
+            source_init = source / '__init__.py'
+            source_init.write_text('# native package marker\n', encoding='utf-8')
+            system_ca = root / 'external-system-ca.pem'
+            system_ca.write_bytes(b'fixture ca data\n')
+            original_hash = hashlib.sha256(system_ca.read_bytes()).hexdigest()
+            fake = types.SimpleNamespace(__file__=str(source_init), where=lambda: str(system_ca))
+
+            source_only = root / 'source-only-packages'
+            source_only.mkdir()
+            self.assertEqual(_stage_certifi(source_only, fake, require_packaged=False, is_linux=True),
+                             'isolated-system-ca')
+            isolated = source_only / 'certifi'
+            self.assertEqual((isolated / 'cacert.pem').read_bytes(), system_ca.read_bytes())
+            self.assertIn('Path(__file__).with_name', (isolated / '__init__.py').read_text(encoding='utf-8'))
+            with (isolated / 'cacert.pem').open('ab') as stream:
+                stream.write(b'fixture test certificate\n')
+            self.assertEqual(hashlib.sha256(system_ca.read_bytes()).hexdigest(), original_hash)
+
+            native = root / 'native-packages'
+            native.mkdir()
+            self.assertEqual(_stage_certifi(native, fake, require_packaged=True, is_linux=True),
+                             'copied-package')
+            self.assertEqual((native / 'certifi/__init__.py').read_bytes(), source_init.read_bytes())
+            self.assertFalse((native / 'certifi/cacert.pem').exists())
+            self.assertEqual(hashlib.sha256(system_ca.read_bytes()).hexdigest(), original_hash)
+
+
 class ChildTransportTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix='deepseek-transport-test-')
@@ -104,16 +159,10 @@ class ChildTransportTests(unittest.TestCase):
         shutil.copyfile(Path(transport.__file__), self.packaged_app / 'deepseek_transport.py')
         packages = self.packaged_app / '.runtime' / 'packages'
         packages.mkdir(parents=True)
-        if getattr(certifi, '__file__', None):
-            shutil.copytree(Path(certifi.__file__).resolve().parent, packages / 'certifi',
-                            ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
-        else:
-            # Source-only Linux CI may intentionally use the system CA fallback.
-            # Native --require-packaged-certifi tests always copy the real package.
-            (packages / 'certifi').mkdir()
-            shutil.copyfile(certifi.where(), packages / 'certifi/cacert.pem')
-            (packages / 'certifi/__init__.py').write_text('from pathlib import Path\ndef where():\n return str(Path(__file__).with_name("cacert.pem"))\n', encoding='utf-8')
+        _stage_certifi(packages, certifi, require_packaged='--require-packaged-certifi' in sys.argv,
+                       is_linux=sys.platform.startswith('linux'))
         self.child = Path(self.temp.name) / 'test-child.py'
+        self.hang_marker = Path(self.temp.name) / 'dns-stall-entered'
         self._write_child()
 
     def tearDown(self):
@@ -135,12 +184,14 @@ class ChildTransportTests(unittest.TestCase):
         # open call with a local server. Production does not accept a URL from
         # the request, environment or command line.
         code = '''import sys,time,urllib.request
+from pathlib import Path
 sys.path.insert(0, APP)
 import deepseek_transport as transport
 import certifi
-assert certifi.__file__.startswith(APP), 'certifi must come from the isolated packaged app'
+assert Path(certifi.__file__).resolve().is_relative_to((Path(APP) / '.runtime/packages/certifi').resolve()), 'certifi must come from the isolated packaged app'
 def local_open(req, timeout):
     if HANG:
+        Path(MARKER).write_text('entered', encoding='ascii')
         time.sleep(30)
     local=urllib.request.Request(URL,data=req.data,method='POST',headers=dict(req.header_items()))
     return urllib.request.urlopen(local,timeout=timeout)
@@ -149,7 +200,7 @@ transport.main()
 '''
         code = ('APP=' + repr(str(self.packaged_app)) + '\nURL=' +
                 repr(f'http://127.0.0.1:{self.server.server_port}/') + '\nHANG=' +
-                repr(hang_before_network) + '\n' + code)
+                repr(hang_before_network) + '\nMARKER=' + repr(str(self.hang_marker)) + '\n' + code)
         self.child.write_text(code, encoding='utf-8')
 
     def _request(self, body=BODY):
@@ -211,6 +262,42 @@ transport.main()
         self.assertEqual(self.server.calls, 1)
         self.assertTrue(all(p.poll() is not None for p in self.children))
 
+    def test_path_alias_is_accepted_for_mock_and_production_tls_child(self):
+        alias = Path(self.temp.name) / 'app-alias'
+        if os.name == 'nt':
+            completed = subprocess.run(['cmd.exe', '/c', 'mklink', '/J', str(alias), str(self.packaged_app)],
+                                       capture_output=True, text=True, timeout=10)
+            self.assertEqual(completed.returncode, 0, 'Could not create local test junction')
+        else:
+            os.symlink(self.packaged_app, alias, target_is_directory=True)
+        self.assertNotEqual(str(alias), str(alias.resolve()))
+        self.packaged_app = alias
+        self._write_child()
+        response, _, kind = self._run('normal', timeout=3)
+        self.assertIsNone(kind)
+        self.assertEqual(response.read(), b'{"local":"ok"}')
+        self.test_production_child_checks_local_tls_hostname_with_packaged_ca()
+
+    def test_external_linux_ca_shim_runs_real_local_tls_without_mutating_source(self):
+        root = Path(self.temp.name)
+        source_package = root / 'fake-external-certifi'
+        source_package.mkdir()
+        source_init = source_package / '__init__.py'
+        source_init.write_text('# fixture only\n', encoding='utf-8')
+        external_ca = root / 'external-ca.pem'
+        shutil.copyfile(self.packaged_app / '.runtime/packages/certifi/cacert.pem', external_ca)
+        original_hash = hashlib.sha256(external_ca.read_bytes()).hexdigest()
+        fake = types.SimpleNamespace(__file__=str(source_init), where=lambda: str(external_ca))
+        isolated_app = root / 'source-linux-app'
+        packages = isolated_app / '.runtime/packages'
+        packages.mkdir(parents=True)
+        shutil.copyfile(Path(transport.__file__), isolated_app / 'deepseek_transport.py')
+        self.assertEqual(_stage_certifi(packages, fake, require_packaged=False, is_linux=True),
+                         'isolated-system-ca')
+        self.packaged_app = isolated_app
+        self.test_production_child_checks_local_tls_hostname_with_packaged_ca()
+        self.assertEqual(hashlib.sha256(external_ca.read_bytes()).hexdigest(), original_hash)
+
     def test_actual_engine_timeout_pauses_without_automatic_resend(self):
         engine = object.__new__(app.Engine)
         engine.retry_delays = (0, 0)
@@ -246,6 +333,7 @@ transport.main()
         response, elapsed, kind = self._run('normal')
         self.assertIsNone(response)
         self.assertEqual(kind, 'billing_uncertain')
+        self.assertEqual(self.hang_marker.read_text(encoding='ascii'), 'entered')
         self.assertLess(elapsed, 3.5)
         self.assertEqual(self.server.calls, 0)
         self.assertTrue(all(p.poll() is not None for p in self.children))
@@ -320,10 +408,11 @@ transport.main()
         try:
             def write_tls_child(hostname):
                 code = '''import socket,sys
+from pathlib import Path
 sys.path.insert(0, APP)
 import deepseek_transport as transport
 import certifi
-assert certifi.__file__.startswith(APP)
+assert Path(certifi.__file__).resolve().is_relative_to((Path(APP) / '.runtime/packages/certifi').resolve())
 transport.API_URL=URL
 original=socket.getaddrinfo
 def local_resolve(host, *args, **kwargs):
