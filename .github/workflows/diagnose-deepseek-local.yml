@@ -1,21 +1,45 @@
-name: Diagnose Ubuntu system certificate
+name: Verify repaired transport fixture
 on:
   push:
     branches: [diagnose-034-local-tls]
 permissions:
   contents: read
 jobs:
-  system-certifi:
-    runs-on: ubuntu-latest
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+          - runner: macos-14
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: ubuntu-latest
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 25
+    env:
+      DIAG_ARCH: ${{ matrix.arch }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Inspect system Python and certificate location
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - name: Prepare hash-locked native runtime
+        shell: bash
+        run: python .github/diagnostics/diagnose_prepare_runtime.py
+      - name: Run with actual bundled Python and CA
         shell: bash
         run: |
-          python3 -c "import sys,certifi; print('SYSTEM_PYTHON',sys.executable); print('CERTIFI_MODULE',certifi.__file__); print('CERTIFI_CA',certifi.where())"
-      - name: Reproduce source-only Linux check
-        shell: bash
-        run: |
-          python3 -B -X utf8 tests/check-deepseek-api.py windows/app /tmp/phyrex-system-certifi-report.json
+          set -euo pipefail
+          app=$(python -c "import json,os,pathlib;print(json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'phyrex-diag-runtime/paths.json').read_text())['app'])")
+          portable=$(python -c "import json,os,pathlib;print(json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'phyrex-diag-runtime/paths.json').read_text())['portable_python'] or '')")
+          if [[ -n "$portable" ]]; then
+            "$portable" -B -X utf8 tests/check-deepseek-api.py "$app" "$RUNNER_TEMP/native-fixture-report.json" --require-packaged-certifi
+          else
+            /usr/bin/python3 -B -X utf8 tests/check-deepseek-api.py windows/app "$RUNNER_TEMP/system-fixture-report.json"
+          fi
