@@ -95,6 +95,8 @@ jobs:
           python3 -B tests/check-fed-phrasing.py mac/app dist-updates/Mac-fed-phrasing-checks.json
           python3 -B tests/check-claude-api.py windows/app dist-updates/Windows-claude-api-checks.json
           python3 -B tests/check-claude-api.py mac/app dist-updates/Mac-claude-api-checks.json
+          python3 -B tests/check-deepseek-api.py windows/app dist-updates/Windows-deepseek-api-checks.json
+          python3 -B tests/check-deepseek-api.py mac/app dist-updates/Mac-deepseek-api-checks.json
           python3 release/build_latency_update.py dist-updates
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
@@ -126,33 +128,33 @@ jobs:
           set -euo pipefail
           # Keep job artifacts separate until duplicate names have been rejected.
           packages=(
-            Fed-English-Translator-0.3.3-beta-Windows-x64-Compact.7z
-            Fed-English-Translator-0.3.3-beta-macOS-arm64.zip
-            Fed-English-Translator-0.3.3-beta-macOS-x86_64.zip
-            PhyrexNi-0.3.3-Windows-Mac-App-Update.zip
-            PhyrexNi-AI-0.3.3-Windows-x64-Update.zip
-            PhyrexNi-AI-0.3.3-macOS-arm64-Update.zip
-            PhyrexNi-AI-0.3.3-macOS-x86_64-Update.zip
+            Fed-English-Translator-0.3.4-beta-Windows-x64-Compact.7z
+            Fed-English-Translator-0.3.4-beta-macOS-arm64.zip
+            Fed-English-Translator-0.3.4-beta-macOS-x86_64.zip
+            PhyrexNi-0.3.4-Windows-Mac-App-Update.zip
+            PhyrexNi-AI-0.3.4-Windows-x64-Update.zip
+            PhyrexNi-AI-0.3.4-macOS-arm64-Update.zip
+            PhyrexNi-AI-0.3.4-macOS-x86_64-Update.zip
           )
           reports=()
-          for stem in Fed-English-Translator-0.3.3-beta-Windows-x64-Compact Fed-English-Translator-0.3.3-beta-macOS-arm64 Fed-English-Translator-0.3.3-beta-macOS-x86_64; do
-            for suffix in checks latency-checks provider-checks read-aloud-checks relocated-checks fed-phrasing-checks claude-api-checks; do
+          for stem in Fed-English-Translator-0.3.4-beta-Windows-x64-Compact Fed-English-Translator-0.3.4-beta-macOS-arm64 Fed-English-Translator-0.3.4-beta-macOS-x86_64; do
+            for suffix in checks latency-checks provider-checks read-aloud-checks relocated-checks fed-phrasing-checks claude-api-checks deepseek-api-checks; do
               reports+=("$stem-$suffix.json")
             done
           done
           for platform in Windows-x64 macOS-arm64 macOS-x86_64; do
-            reports+=("PhyrexNi-AI-0.3.3-$platform-Update-checks.json")
+            reports+=("PhyrexNi-AI-0.3.4-$platform-Update-checks.json")
           done
-          reports+=(PhyrexNi-0.3.3-Windows-Mac-App-Update-checks.json)
+          reports+=(PhyrexNi-0.3.4-Windows-Mac-App-Update-checks.json)
           for platform in Windows Mac; do
-            for suffix in read-aloud-checks fed-phrasing-checks claude-api-checks; do
+            for suffix in read-aloud-checks fed-phrasing-checks claude-api-checks deepseek-api-checks; do
               reports+=("$platform-$suffix.json")
             done
           done
           declare -A expected=()
           for name in "${packages[@]}" "${reports[@]}"; do expected["$name"]=1; done
           for name in "${packages[@]}"; do expected["$name.sha256"]=1; done
-          [[ ${#packages[@]} -eq 7 && ${#reports[@]} -eq 31 && ${#expected[@]} -eq 45 ]]
+          [[ ${#packages[@]} -eq 7 && ${#reports[@]} -eq 36 && ${#expected[@]} -eq 50 ]]
           mkdir staged-assets
           for artifact in release-windows release-mac-arm64 release-mac-x86_64 release-updates; do
             dir="artifacts/$artifact"
@@ -179,12 +181,12 @@ jobs:
             done
           }
           verify_assets staged-assets
-          tag=v0.3.3-beta
+          tag=v0.3.4-beta
           if gh release view "$tag" >/dev/null 2>&1; then
             echo 'Release already exists; refusing to overwrite it.'
             exit 1
           fi
-          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · Claude API 公开测试版 0.3.3' --notes-file release/RELEASE.md
+          gh release create "$tag" --target "$GITHUB_SHA" --draft --prerelease --title '@PhyrexNi · DeepSeek API 公开测试版 0.3.4' --notes-file release/RELEASE.md
           gh release upload "$tag" staged-assets/*
           mkdir verify-downloads
           gh release download "$tag" --dir verify-downloads

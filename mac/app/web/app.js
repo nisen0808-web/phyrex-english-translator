@@ -339,8 +339,10 @@ function render(state){
     $('loginLink').textContent='打开 '+providerInfo.label+' 官方登录页';
   }
   $('claudeKeyArea').hidden=provider!=='claude';
-  $('checkLogin').textContent=provider==='claude'?'刷新密钥状态':'重新检查登录';
-  $('login').hidden=provider==='claude'||(state.codex.ready&&!login.running);$('login').disabled=providerSwitching||Boolean(login.running);
+  $('deepseekKeyArea').hidden=provider!=='deepseek';
+  const apiProvider=provider==='claude'||provider==='deepseek';
+  $('checkLogin').textContent=apiProvider?'刷新密钥状态':'重新检查登录';
+  $('login').hidden=apiProvider||(state.codex.ready&&!login.running);$('login').disabled=providerSwitching||Boolean(login.running);
   $('login').textContent=login.running?'等待官方页面登录…':providerInfo?.login_label||'登录自己的 ChatGPT';
   $('loginMessage').hidden=!login.message;$('loginMessage').textContent=login.message||'';
   const loginHosts={chatgpt:['auth.openai.com','auth.chatgpt.com','chatgpt.com'],grok:['auth.x.ai','accounts.x.ai','grok.com'],gemini:['accounts.google.com']};
@@ -460,10 +462,12 @@ $('profile').onchange=()=>{if(['美联储发布会','英语直播'].includes($('
 $('login').onclick=async()=>{try{$('login').disabled=true;await request('/api/login',{provider:$('provider').value});hadLogin=true;await poll();}catch(e){notice(e.message);$('login').disabled=false;}};
 $('setClaudeKey').onclick=async()=>{const input=$('claudeKey'),workspace=$('claudeWorkspace'),key=input.value,workspace_id=workspace.value;input.value='';workspace.value='';try{$('setClaudeKey').disabled=true;await request('/api/claude-key',{key,workspace_id});notice('密钥已暂存本机内存；首次翻译时验证账号权限和额度。');await poll();}catch(e){notice(e.message);}finally{$('setClaudeKey').disabled=false;}};
 $('clearClaudeKey').onclick=async()=>{try{await request('/api/claude-key',{clear:true});$('claudeKey').value='';$('claudeWorkspace').value='';notice('Claude API 密钥已清除，后续翻译需重新填写。');await poll();}catch(e){notice(e.message);}};
-$('provider').onchange=async()=>{providerSwitching=true;$('claudeKey').value='';$('claudeWorkspace').value='';$('login').disabled=true;$('provider').disabled=true;$('start').disabled=true;try{await request('/api/provider',{provider:$('provider').value});notice('已切换翻译 AI。请确认对应账号或密钥，再开始新的一场翻译。');}catch(e){notice(e.message);}finally{providerSwitching=false;await poll();}};
-$('resume').onclick=async()=>{if(lastState?.provider==='claude'&&!window.confirm('继续处理可能重新发送失败片段，并产生 Claude API 费用。是否继续？'))return;try{$('resume').disabled=true;await request('/api/resume',{session:selected,model:$('model').value});notice('已恢复处理，已采集内容会继续翻译。');await poll();}catch(e){notice(e.message);}finally{$('resume').disabled=false;}};
+$('setDeepseekKey').onclick=async()=>{const input=$('deepseekKey'),key=input.value;input.value='';try{$('setDeepseekKey').disabled=true;await request('/api/deepseek-key',{api_key:key});notice('密钥已暂存本机内存；首次翻译时验证账号权限和额度。');}catch(e){notice(e.message);}finally{$('setDeepseekKey').disabled=false;await poll();}};
+$('clearDeepseekKey').onclick=async()=>{try{await request('/api/deepseek-key',{clear:true});$('deepseekKey').value='';notice('DeepSeek API 密钥已清除，后续翻译需重新填写。');await poll();}catch(e){notice(e.message);}};
+$('provider').onchange=async()=>{providerSwitching=true;$('claudeKey').value='';$('claudeWorkspace').value='';$('deepseekKey').value='';$('login').disabled=true;$('provider').disabled=true;$('start').disabled=true;try{await request('/api/provider',{provider:$('provider').value});notice('已切换翻译 AI。请确认对应账号或密钥，再开始新的一场翻译。');}catch(e){notice(e.message);}finally{providerSwitching=false;await poll();}};
+$('resume').onclick=async()=>{const provider=lastState?.provider,apiName=provider==='claude'?'Claude':provider==='deepseek'?'DeepSeek':'';if(apiName&&!window.confirm(`继续处理可能重新发送失败片段，并产生 ${apiName} API 费用。是否继续？`))return;const consent=apiName?{confirm_api_charge:true,confirm_api_provider:provider}:{};try{$('resume').disabled=true;const result=await request('/api/resume',{session:selected,model:$('model').value,...consent});notice(result.remaining?`已恢复处理，${result.remaining} 段失败内容尚未重试；队列空出后请点击“重试失败段落”。`:'已恢复处理，已采集内容会继续翻译。');await poll();}catch(e){notice(e.message);}finally{$('resume').disabled=false;}};
 $('history').onchange=()=>{selected=$('history').value;lastSignature='';ensureEventStream();poll();};
-$('retry').onclick=async()=>{try{if(lastState?.problem?.kind){notice('请先解决上方暂停原因，再点击“继续处理”。');return;}if(lastState?.provider==='claude'&&!window.confirm('重试会重新发送失败片段，并可能产生 Claude API 费用。是否继续？'))return;await request('/api/retry',{session:selected});notice('正在重试失败段落。');await poll();}catch(e){notice(e.message);}};
+$('retry').onclick=async()=>{try{if(lastState?.problem?.kind){notice('请先解决上方暂停原因，再点击“继续处理”。');return;}const provider=lastState?.provider,apiName=provider==='claude'?'Claude':provider==='deepseek'?'DeepSeek':'';if(apiName&&!window.confirm(`重试会重新发送失败片段，并可能产生 ${apiName} API 费用。是否继续？`))return;const consent=apiName?{confirm_api_charge:true,confirm_api_provider:provider}:{};const result=await request('/api/retry',{session:selected,...consent});notice(result.remaining?`已重新排队 ${result.retried} 段，${result.remaining} 段尚未重试；队列空出后请再次重试。`:'正在重试失败段落。');await poll();}catch(e){notice(e.message);}};
 $('checkLogin').onclick=async()=>{try{await request('/api/check-login');await poll();}catch(e){notice(e.message);}};
 $('saveGlossary').onclick=async()=>{try{const glossary=parseGlossary();await request('/api/glossary',{glossary});updateGlossaryInfo();notice('术语库已保存，将用于下一场美联储 / 财经翻译。');}catch(e){notice(e.message);}};
 $('smaller').onclick=()=>{fontSize=Math.max(16,fontSize-2);document.documentElement.style.setProperty('--font',fontSize+'px');};

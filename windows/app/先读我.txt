@@ -1,4 +1,4 @@
-@PhyrexNi · 美联储英语直播译文 0.3.3 测试版
+@PhyrexNi · 美联储英语直播译文 0.3.4 测试版
 Windows 10/11 64 位 · Chrome / Edge
 
 支持什么
@@ -14,7 +14,7 @@ Windows 10/11 64 位 · Chrome / Edge
 3. Chrome 打开 chrome://extensions；Edge 打开 edge://extensions。
 4. 打开“开发者模式”，选择“加载已解压的扩展程序”，选中解压目录里的 extension 文件夹。
 5. 把“PhyrexNi · 美联储英语直播译文”固定到浏览器工具栏，点击图标打开侧栏。
-6. 选择 ChatGPT、Grok、Google Gemini 或 Claude API。前三项登录自己的账号；Claude 使用自己提供的 Anthropic API 密钥并独立计费。
+6. 选择 ChatGPT、Grok、Google Gemini、Claude API 或 DeepSeek API。前三项登录自己的账号；Claude 和 DeepSeek 使用自己提供的 API 密钥并独立计费。
 
 如果无法使用开发者模式，也可双击 Start.cmd，在完整浏览器页面中使用同样功能。
 浏览器扩展与本机连接组件缺一不可。这不是“只装扩展、没有任何后台组件”的版本。
@@ -31,7 +31,7 @@ Windows 10/11 64 位 · Chrome / Edge
 8. 不再使用时可运行 Stop.cmd 关闭后台服务。
 
 账号、额度和数据
-ChatGPT 需要 Codex 权限、Grok 需要 Build 权限，Gemini 使用 Google 登录。Claude API 使用自己的 Anthropic API 密钥并独立计费；详见 AI选择说明.md。
+ChatGPT 需要 Codex 权限、Grok 需要 Build 权限，Gemini 使用 Google 登录。Claude 和 DeepSeek API 使用各自的 API 密钥并独立计费；详见 AI选择说明.md。
 本包没有发布者的账号、翻译历史或本机配置；也不会自动借用接收者已安装的其他 Codex 登录。
 语音模型在本机运行，识别后的英文文字会发送给所选 AI 的官方服务进行翻译。
 应用记录只保存中文译文；官方 AI 组件可能生成临时缓存，翻译结束及下次启动时清理。详见 PRIVACY.md。

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PhyrexNi · 美联储英语直播译文（测试版）",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "英语直播与回放译成中文，支持美联储术语、逐段复制、朗读与导出。Claude 为自行提供密钥的独立计费 API。",
   "minimum_chrome_version": "116",
   "permissions": [

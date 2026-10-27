@@ -10,6 +10,7 @@ import time
 
 import bridge
 import claude_api
+import deepseek_api
 from runtime import ROOT, USER_DIR
 
 TranslationError = bridge.TranslationError
@@ -19,13 +20,14 @@ PROVIDERS = {
     'grok': {'label': 'Grok', 'models': {'auto': '自动 · 使用账号默认模型'}, 'login_label': '登录自己的 Grok', 'notice': '通过官方 Grok Build 使用自己的 Grok 账号；账号需要具有 Grok Build 使用权限。'},
     'gemini': {'label': 'Google Gemini', 'models': {'auto': '自动 · 使用账号可用模型'}, 'login_label': '登录自己的 Google 账号', 'notice': '通过官方 Gemini CLI 使用自己的 Google 账号；部分公司或学校账号需要额外配置，建议先用个人账号。'},
     'claude': {'label': 'Claude API', 'models': {'claude-sonnet-5-5': 'Sonnet · 默认', 'claude-haiku-5-5': 'Haiku · 单价较低'}, 'login_label': '设置 Claude API 密钥', 'notice': '使用自己的 Anthropic API 密钥，按 API 额度或账单计费，与 Claude 订阅限额分开。密钥仅保留在本机组件内存，重启后需重新填写。'},
+    'deepseek': {'label': 'DeepSeek API', 'models': {'deepseek-flash': 'Flash · 默认', 'deepseek-v4-pro': 'Pro · 更高单价'}, 'login_label': '设置 DeepSeek API 密钥', 'notice': '使用自己的 DeepSeek API 密钥，按 API 输入和输出用量计费；默认思考可能增加等待和费用。密钥仅保留在本机组件内存，切换 AI 或重启后需重新填写。'},
 }
 LOCKS = {name: threading.RLock() for name in PROVIDERS}
 
 
 def validate_provider(provider):
     if provider not in PROVIDERS:
-        raise ValueError('请选择 ChatGPT、Grok、Google Gemini 或 Claude API。')
+        raise ValueError('请选择 ChatGPT、Grok、Google Gemini、Claude API 或 DeepSeek API。')
     return provider
 
 
@@ -45,6 +47,8 @@ def cli(provider):
     validate_provider(provider)
     if provider == 'chatgpt':
         return [bridge.codex_path()]
+    if provider in ('claude', 'deepseek'):
+        raise ValueError('请在所选 API 区域填写自己的密钥。')
     ai = ROOT / '.runtime' / 'ai'
     if provider == 'grok':
         command = [ai / 'grok' / ('grok.exe' if os.name == 'nt' else 'grok')]
@@ -56,9 +60,9 @@ def cli(provider):
 
 
 def mark_login(provider, ready):
-    if provider == 'claude':
+    if provider in ('claude', 'deepseek'):
         if not ready:
-            claude_api.clear_api_key()
+            (claude_api if provider == 'claude' else deepseek_api).clear_api_key()
         return
     folder = home(provider)
     folder.mkdir(parents=True, exist_ok=True)
@@ -75,6 +79,9 @@ def login_status(provider='chatgpt'):
     if provider == 'claude':
         ready = claude_api.has_api_key()
         return {'ready': ready, 'installed': True, 'message': 'Claude API 密钥已设置；首次翻译时验证权限与额度。' if ready else '请填写自己的 Claude API 密钥。'}
+    if provider == 'deepseek':
+        ready = deepseek_api.has_api_key()
+        return {'ready': ready, 'installed': True, 'message': 'DeepSeek API 密钥已设置；首次翻译时验证权限与额度。' if ready else '请填写自己的 DeepSeek API 密钥。'}
     try:
         cli(provider)
     except ValueError as exc:
@@ -91,6 +98,8 @@ def environment(provider, login=False):
     validate_provider(provider)
     if provider == 'chatgpt':
         return bridge.environment()
+    if provider in ('claude', 'deepseek'):
+        raise ValueError('API 连接不使用本机登录组件。')
     folder = home(provider)
     folder.mkdir(parents=True, exist_ok=True)
     # No inherited provider credentials, routing, agent hooks or Node injection.
@@ -131,7 +140,7 @@ def environment(provider, login=False):
 
 def clear_transient_history(provider):
     """Only remove generated caches inside this application's own provider home."""
-    if provider == 'chatgpt':
+    if provider in ('chatgpt', 'claude', 'deepseek'):
         return
     base = home(provider).resolve()
     names = ('.gemini/tmp', '.gemini/history') if provider == 'gemini' else ('.grok/sessions', '.grok/logs', '.grok/history', '.grok/history.txt', '.grok/crash')
@@ -193,6 +202,8 @@ def translate(source, context, glossary, model=None, profile='fed', provider='ch
         return bridge.translate(source, context, glossary, model, profile, on_partial=on_partial, session_id=session_id)
     if provider == 'claude':
         return claude_api.translate(source, context, glossary, model, profile)
+    if provider == 'deepseek':
+        return deepseek_api.translate(source, context, glossary, model, profile)
     status = login_status(provider)
     if not status['ready']:
         raise TranslationError(status['message'], 'auth')

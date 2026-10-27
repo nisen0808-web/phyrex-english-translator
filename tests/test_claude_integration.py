@@ -42,7 +42,7 @@ class ClaudeIntegrationTests(unittest.TestCase):
         claude_api.clear_api_key()
 
     def test_four_options_and_claude_defaults_without_auto_switch(self):
-        self.assertEqual(set(providers.PROVIDERS), {'chatgpt', 'grok', 'gemini', 'claude'})
+        self.assertEqual(set(providers.PROVIDERS), {'chatgpt', 'grok', 'gemini', 'claude', 'deepseek'})
         self.assertEqual(next(iter(providers.PROVIDERS['claude']['models'])), 'claude-sonnet-5-5')
         self.assertFalse(providers.login_status('claude')['ready'])
         claude_api.set_api_key(FAKE_KEY)
@@ -119,11 +119,21 @@ class ClaudeIntegrationTests(unittest.TestCase):
         engine.glossary = {}
         engine.start = Mock(return_value='fixture-session')
         engine.accept = Mock(return_value={'accepted': True})
-        engine.resume = Mock()
-        engine.retry = Mock()
+        engine.resume = Mock(return_value={'retried': 0, 'remaining': 0})
+        engine.retry = Mock(return_value={'retried': 1, 'remaining': 0})
 
         class TestHandler(app.Handler):
-            pass
+            def do_POST(self):
+                # This fixture uses only small, controlled bodies. Buffer them
+                # before invoking the real handler so Windows does not reset a
+                # rejected connection while the client is still sending.
+                original = self.rfile
+                body = original.read(int(self.headers.get('Content-Length', '0')))
+                self.rfile = io.BytesIO(body)
+                try:
+                    return super().do_POST()
+                finally:
+                    self.rfile = original
 
         TestHandler.engine = engine
         TestHandler.token = 'local-fixture-token'
@@ -191,11 +201,73 @@ class ClaudeIntegrationTests(unittest.TestCase):
             server.server_close()
             thread.join(2)
 
-    def test_key_endpoint_origin_token_recovery_and_no_echo(self):
-        server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+    def test_unwrapped_handler_rejects_unauthorized_post_without_side_effect(self):
+        """A rejected body can yield 403 or a Windows TCP reset, never mutation.
+
+        This exercises the production Handler without the buffering fixture. A
+        spy only observes its actual access check, preventing unrelated client
+        connection failures from being mistaken for successful rejection.
+        """
         engine = StubEngine()
+        engine.resume = Mock()
+        original_engine, original_token = app.Handler.engine, app.Handler.token
         app.Handler.engine = engine
-        app.Handler.token = 'test-local-token-not-a-secret'
+        app.Handler.token = 'fixture-local-token'
+        checked = threading.Event()
+        observed = []
+        original_check = app.Handler.local_request
+
+        def observe_check(handler, mutation=False):
+            allowed = original_check(handler, mutation)
+            observed.append((mutation, allowed))
+            checked.set()
+            return allowed
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), app.Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        conn = http.client.HTTPConnection('127.0.0.1', server.server_port, timeout=5)
+        try:
+            headers = {'Content-Type': 'application/json', 'X-Local-Token': 'bad-token',
+                       'Origin': f'http://127.0.0.1:{server.server_port}'}
+            with patch.object(app.Handler, 'local_request', observe_check):
+                try:
+                    conn.request('POST', '/api/resume', json.dumps({'session': 'fixture'}), headers)
+                    response = conn.getresponse()
+                    raw = response.read()
+                    self.assertEqual(response.status, 403)
+                    self.assertNotIn(b'fixture-local-token', raw)
+                except (ConnectionAbortedError, ConnectionResetError) as exc:
+                    # Explicit OS connection-aborted/reset only; not timeout,
+                    # refused connection, arbitrary OSError or other failure.
+                    self.assertIn(getattr(exc, 'winerror', None) or exc.errno, (10053, 10054, 103, 104))
+                self.assertTrue(checked.wait(2), 'The actual access check did not run')
+                self.assertEqual(observed, [(True, False)])
+                engine.resume.assert_not_called()
+        finally:
+            conn.close()
+            server.shutdown()
+            server.server_close()
+            thread.join(2)
+            app.Handler.engine, app.Handler.token = original_engine, original_token
+
+    def test_key_endpoint_origin_token_recovery_and_no_echo(self):
+        class KeyHandler(app.Handler):
+            def do_POST(self):
+                # Controlled fixture bodies only: leave production handling
+                # unchanged while preventing unread-body TCP reset races.
+                original = self.rfile
+                body = original.read(int(self.headers.get('Content-Length', '0')))
+                self.rfile = io.BytesIO(body)
+                try:
+                    return super().do_POST()
+                finally:
+                    self.rfile = original
+
+        server = ThreadingHTTPServer(('127.0.0.1', 0), KeyHandler)
+        engine = StubEngine()
+        KeyHandler.engine = engine
+        KeyHandler.token = 'test-local-token-not-a-secret'
         threading.Thread(target=server.serve_forever, daemon=True).start()
         port = server.server_port
 

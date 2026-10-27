@@ -10,7 +10,7 @@ import sys
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
-VERSION = '0.3.3-beta'
+VERSION = '0.3.4-beta'
 sys.path.insert(0, str(HERE.parent / 'release'))
 from ai_components import bundle
 from build_updates import build_update
@@ -84,6 +84,7 @@ def main():
     subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE.parent / 'tests/check-latency.py'), str(root), str(output / (name + '-latency-checks.json'))], check=True)
     subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE.parent / 'tests/check-fed-phrasing.py'), str(root), str(output / (name + '-fed-phrasing-checks.json'))], check=True)
     subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE.parent / 'tests/check-claude-api.py'), str(root), str(output / (name + '-claude-api-checks.json')), '--require-packaged-certifi'], check=True)
+    subprocess.run([str(python), '-B', '-X', 'utf8', str(HERE.parent / 'tests/check-deepseek-api.py'), str(root), str(output / (name + '-deepseek-api-checks.json')), '--require-packaged-certifi'], check=True)
     node = shutil.which('node')
     if not node:
         raise RuntimeError('Node.js is required on the build machine for release checks.')

@@ -51,8 +51,11 @@ class LowLatencyPipeline(LiveUpdates):
                         row['status'] = 'silent'
                         self.complete_job(job, session, row)
             except Exception as exc:
-                self.fail_job(job, session, row, exc)
-                self.complete_job(job, session, row)
+                # A retry must not requeue this same job before completion
+                # has finished releasing the original in-flight entry.
+                with self.lock:
+                    self.fail_job(job, session, row, exc)
+                    self.complete_job(job, session, row)
             # Do not hold the last source/audio in an idle worker frame.
             job = session = row = None
 
@@ -68,9 +71,14 @@ class LowLatencyPipeline(LiveUpdates):
                     self.notify_changed()
                 self.translate_job(job, session, row)
             except Exception as exc:
-                self.fail_job(job, session, row, exc)
-            finally:
+                with self.lock:
+                    try:
+                        self.fail_job(job, session, row, exc)
+                    finally:
+                        self.complete_job(job, session, row)
+            else:
                 self.complete_job(job, session, row)
+            finally:
                 self.translation_jobs.task_done()
             job = session = row = None
 

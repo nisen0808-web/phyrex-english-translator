@@ -19,6 +19,7 @@ from urllib.parse import parse_qs, urlparse
 import zipfile
 from xml.sax.saxutils import escape
 import claude_api
+import deepseek_api
 
 from runtime import ROOT, USER_DIR, instance_id, acquire_instance_lock, prepare
 CONFIG = prepare()
@@ -159,29 +160,48 @@ class Engine(LowLatencyPipeline):
             if self.pending or self.problem or any(s['status'] in ('recording', 'draining') for s in self.sessions.values()):
                 raise ValueError('请先结束当前采集并处理完片段，再切换 AI；当前记录不会改用其他账号。')
             self.login.select(provider)
+            if self.provider in ('claude', 'deepseek'):
+                mark_login(self.provider, False)
             write_json(USER_DIR / 'ai-choice.json', {'provider': provider})
             self.provider = provider
             self.codex = {'ready': False, 'message': '正在检查 ' + PROVIDERS[provider]['label'] + ' 登录'}
         return self.refresh_login()
 
-    def resume(self, sid=None, model=None):
-        status = self.refresh_login()
+    def _confirm_api_retry(self, sid, confirm_api_charge, confirm_api_provider):
+        """Bind consent to the actual session/provider; call while holding self.lock."""
+        session = self.sessions.get(sid) if sid else None
+        if sid and session is None:
+            raise ValueError('记录不存在，请刷新后重试。')
+        provider = session.get('provider', 'chatgpt') if session else self.provider
+        if provider != self.provider:
+            raise ValueError('请先切换到这场记录原来使用的 AI，再重试。')
+        if provider in ('claude', 'deepseek') and (confirm_api_charge is not True or confirm_api_provider != provider):
+            raise ValueError('请刷新页面并确认所选 AI 的 API 重试费用后再继续。')
+
+    def resume(self, sid=None, model=None, confirm_api_charge=False, confirm_api_provider=None):
         with self.lock:
+            # Validate the actual problem session under the same lock before
+            # login refresh, model changes, gate changes or any requeue.
+            sid = self.problem.get('session', sid)
+            self._confirm_api_retry(sid, confirm_api_charge, confirm_api_provider)
+            status = self.refresh_login()
             self.codex = status
             if not status['ready']:
                 raise ValueError(status['message'])
             # A model unavailable to this account can be replaced for this session.
-            sid = self.problem.get('session', sid)
             if model is not None:
                 validate_model(self.provider, model)
                 if sid:
                     self.sessions[sid]['model'] = model
-            # Retry cached failures before releasing the waiting worker.
-            if sid and any(key[0] == sid for key in self.failed):
-                self.retry(sid)
+            # Open the gate even when the queue is full so it can drain.
+            remaining = sum(1 for key in self.failed if key[0] == sid)
+            result = {'retried': 0, 'remaining': remaining}
+            if remaining and self.pending < MAX_PENDING:
+                result = self.retry(sid, confirm_api_charge, confirm_api_provider)
             self.problem = {}
             self.gate.set()
             self.notify_changed()
+            return result
 
     def heartbeat(self, sid):
         with self.lock:
@@ -281,13 +301,15 @@ class Engine(LowLatencyPipeline):
                 from streaming import close_session
                 close_session(s['id'])
 
-    def retry(self, sid):
+    def retry(self, sid, confirm_api_charge=False, confirm_api_provider=None):
         with self.lock:
-            if self.sessions[sid].get('provider', 'chatgpt') != self.provider:
-                raise ValueError('请先切换到这场记录原来使用的 AI，再重试。')
+            self._confirm_api_retry(sid, confirm_api_charge, confirm_api_provider)
             items = [(key, job) for key, job in self.failed.items() if key[0] == sid]
             if not items:
                 raise ValueError('没有可重试的缓存；重启前失败的音频需要从原视频重播。')
+            if self.pending >= MAX_PENDING:
+                raise ValueError('处理队列已满，失败段落尚未重试；请等待队列空出后再试。')
+            retried = 0
             for key, job in items:
                 if self.pending >= MAX_PENDING:
                     break
@@ -296,9 +318,11 @@ class Engine(LowLatencyPipeline):
                 self.failed.pop(key)
                 self.pending += 1
                 self.enqueue_job(job)
+                retried += 1
             if self.sessions[sid]['status'] == 'finished':
                 self.sessions[sid]['status'] = 'draining'
             self.persist(self.sessions[sid])
+            return {'retried': retried, 'remaining': len(items) - retried}
 
     def recognize_job(self, job, s, row):
         sid, seq = job['sid'], job['seq']
@@ -440,7 +464,7 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == '/api/state':
                 return self.send(self.engine.state(args.get('session', [None])[0]))
             if parsed.path == '/api/config':
-                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.3-beta', 'token': self.token,
+                return self.send({'app': 'fed-live-translator', 'distribution': 'public', 'instance': instance_id(), 'version': '0.3.4-beta', 'token': self.token,
                                   'providers': PROVIDERS,
                                   'language': 'en', 'glossary': self.engine.glossary,
                                   'glossary_info': json.loads((ROOT / 'glossary-info.json').read_text(encoding='utf-8')),
@@ -477,12 +501,31 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get('Content-Length', '0'))
             if length < 0 or length > RATE * 2 * 35 + 4096:
                 return self.send({'error': '请求过大。'}, 413)
-            if parsed.path == '/api/claude-key' and length > 2048:
+            if parsed.path in ('/api/claude-key', '/api/deepseek-key') and length > 2048:
                 return self.send({'error': '密钥请求过大。'}, 413)
             body = self.rfile.read(length)
             if parsed.path == '/api/audio':
                 return self.send(self.engine.accept(args['session'][0], int(args['seq'][0]), float(args['start'][0]), body))
             obj = json.loads(body or b'{}')
+            if parsed.path == '/api/deepseek-key':
+                origin = self.headers.get('Origin', '')
+                if origin not in {f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}'} or self.headers.get_content_type() != 'application/json' or length > 2048:
+                    return self.send({'error': '仅允许本机页面设置密钥。'}, 403)
+                with self.engine.lock:
+                    if self.engine.provider != 'deepseek':
+                        raise ValueError('请先选择 DeepSeek API。')
+                    active = self.engine.pending or any(s['status'] in ('recording', 'draining') for s in self.engine.sessions.values())
+                    if active and self.engine.problem.get('kind') != 'auth':
+                        raise ValueError('请先结束采集并等待处理完成，再更换密钥。')
+                    if obj.get('clear') is True:
+                        deepseek_api.clear_api_key()
+                    else:
+                        try:
+                            deepseek_api.set_api_key(obj.get('api_key'))
+                        except ValueError:
+                            self.engine.refresh_login()
+                            raise
+                return self.send(self.engine.refresh_login())
             if parsed.path == '/api/claude-key':
                 origin = self.headers.get('Origin', '')
                 if origin not in {f'http://127.0.0.1:{self.server.server_port}', f'http://localhost:{self.server.server_port}'} or self.headers.get_content_type() != 'application/json' or length > 2048:
@@ -514,14 +557,14 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError('请先选择需要登录的 AI。')
                 return self.send(self.engine.login.start(self.engine.provider))
             if parsed.path == '/api/resume':
-                self.engine.resume(obj.get('session'), obj.get('model'))
-                return self.send({'ok': True})
+                result = self.engine.resume(obj.get('session'), obj.get('model'), obj.get('confirm_api_charge'), obj.get('confirm_api_provider'))
+                return self.send({'ok': True, **result})
             if parsed.path == '/api/finish':
                 self.engine.finish(obj['session'])
                 return self.send({'ok': True})
             if parsed.path == '/api/retry':
-                self.engine.retry(obj['session'])
-                return self.send({'ok': True})
+                result = self.engine.retry(obj['session'], obj.get('confirm_api_charge'), obj.get('confirm_api_provider'))
+                return self.send({'ok': True, **result})
             if parsed.path == '/api/check-login':
                 return self.send(self.engine.refresh_login())
             if parsed.path == '/api/glossary':

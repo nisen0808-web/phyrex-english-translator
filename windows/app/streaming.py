@@ -149,7 +149,7 @@ class CodexStream:
                                      text=True, encoding='utf-8', creationflags=bridge.NO_WINDOW)
         self.messages = queue.Queue()
         threading.Thread(target=self.read_output, args=(self.proc, self.messages), daemon=True).start()
-        self.rpc('initialize', {'clientInfo': {'name': 'phyrex_live_translator', 'title': 'Phyrex Live Translator', 'version': '0.3.3'}, 'capabilities': {'experimentalApi': True}})
+        self.rpc('initialize', {'clientInfo': {'name': 'phyrex_live_translator', 'title': 'Phyrex Live Translator', 'version': '0.3.4'}, 'capabilities': {'experimentalApi': True}})
         self.send({'method': 'initialized', 'params': {}})
         self.check_account()
 

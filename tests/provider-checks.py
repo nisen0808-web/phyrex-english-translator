@@ -38,7 +38,7 @@ class Providers(unittest.TestCase):
         checks.append(self._testMethodName)
 
     def test_allowlist_and_modes(self):
-        self.assertEqual(set(p.PROVIDERS), {'chatgpt', 'grok', 'gemini', 'claude'})
+        self.assertEqual(set(p.PROVIDERS), {'chatgpt', 'grok', 'gemini', 'claude', 'deepseek'})
         for provider in p.PROVIDERS:
             for model in p.PROVIDERS[provider]['models']:
                 p.validate_model(provider, model)

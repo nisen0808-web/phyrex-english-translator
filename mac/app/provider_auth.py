@@ -49,8 +49,8 @@ class LoginManager:
             self.provider = provider
             if provider == 'chatgpt':
                 return self.chatgpt.start()
-            if provider == 'claude':
-                raise ValueError('请在 Claude API 区域填写自己的密钥。')
+            if provider in ('claude', 'deepseek'):
+                raise ValueError('请在 ' + PROVIDERS[provider]['label'] + ' 区域填写自己的密钥。')
             command = cli(provider)
             env = environment(provider, login=True)
             if provider == 'grok':

@@ -7,7 +7,7 @@ macOS 14 或更新版本，Chrome / Edge。下载 Apple 芯片版（M 系列，a
 1. 双击 ZIP 完整解压，把整个文件夹放到你个人的“应用程序”文件夹等固定位置。不要单独移动内部文件。
 2. 双击 `Install-Connector.command`。它仅为当前用户注册 Chrome / Edge 的本机连接，不需要管理员密码。
 3. Chrome 地址栏输入 `chrome://extensions`，或 Edge 输入 `edge://extensions`；开启开发者模式，加载本目录的 `extension` 文件夹。
-4. 打开扩展侧栏，选择 ChatGPT、Grok、Google Gemini 或 Claude API。前三项登录自己的账号；Claude 使用自己提供的 Anthropic API 密钥并独立计费。
+4. 打开扩展侧栏，选择 ChatGPT、Grok、Google Gemini、Claude API 或 DeepSeek API。前三项登录自己的账号；Claude 和 DeepSeek 使用自己提供的 API 密钥并独立计费。
 5. 播放英语视频，选择播放标签页并勾选共享标签页音频。仅支持英语转中文。
 
 如果侧栏无法采集声音，点“完整页面”，或者双击 `Start.command`，在 Chrome / Edge 的完整页面里操作。Safari 不在本测试版支持范围内。若 macOS 要求屏幕或音频录制权限，请由你在系统设置中允许正在使用的浏览器，然后按系统提示重启浏览器。
@@ -20,7 +20,7 @@ macOS 14 或更新版本，Chrome / Edge。下载 Apple 芯片版（M 系列，a
 
 结束时先点击页面里的“结束采集并保存”，等待队列完成；暂时不用可双击 `Stop.command`。关闭采集页面会停止继续采集。
 
-中文记录及前三家 AI 的登录信息位于 `user-data`；Claude API 密钥只在当前本机组件进程的内存中保留。识别后的英文及上下文发给所选 AI；官方组件可能生成临时缓存，翻译后及下次启动时清理。账号要求见 `AI选择说明.md`，缓存处理见 `PRIVACY.md`。不要转发使用后的文件夹；请分享 GitHub 原始 ZIP。
+中文记录及前三家 AI 的登录信息位于 `user-data`；Claude 和 DeepSeek API 密钥只在当前本机组件进程的内存中保留。识别后的英文及上下文发给所选 AI；官方组件可能生成临时缓存，翻译后及下次启动时清理。账号要求见 `AI选择说明.md`，缓存处理见 `PRIVACY.md`。不要转发使用后的文件夹；请分享 GitHub 原始 ZIP。
 
 ## 卸载和升级
 
@@ -28,7 +28,7 @@ macOS 14 或更新版本，Chrome / Edge。下载 Apple 芯片版（M 系列，a
 
 升级时使用新的干净文件夹，停止旧版后复制自己的 `user-data` 到新版，再运行新版安装脚本并重新加载扩展。移动文件夹后也需要重新安装连接。
 
-这是完整运行包，不需要另装 Python、Homebrew 或购买 API。没有自动更新、开机自启或系统防护绕过操作。
+这是完整运行包，不需要另装 Python 或 Homebrew；使用 Claude 或 DeepSeek 选项时需要自己的 API 密钥并按用量计费。没有自动更新、开机自启或系统防护绕过操作。
 
 测试反馈：https://github.com/nisen0808-web/phyrex-english-translator/issues
 
