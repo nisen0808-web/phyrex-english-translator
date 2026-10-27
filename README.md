@@ -2,9 +2,9 @@
 
 把英语直播、回放和访谈翻译成中文。优先支持美联储与宏观财经内容，也可选择通用英语场景。
 
-**0.3.3-beta · Windows 10/11 x64 / macOS 14+ · Chrome / Edge · 仅英语 → 中文**
+**0.3.4-beta · Windows 10/11 x64 / macOS 14+ · Chrome / Edge · 仅英语 → 中文**
 
-提供 **ChatGPT、Grok、Google Gemini 和 Claude API** 四种翻译选项。前三项登录自己的账号；Claude 使用自己提供的 Anthropic API 密钥，按 API 额度或账单独立计费，不使用 Claude 聊天订阅额度。保留中文朗读：中文播放时屏蔽英文外放，英文音轨继续识别。
+提供 **ChatGPT、Grok、Google Gemini、Claude API 和 DeepSeek API** 五种翻译选项。前三项登录自己的账号；Claude 和 DeepSeek 使用各自的 API 密钥，按各自的 API 额度或账单独立计费。保留中文朗读：中文播放时屏蔽英文外放，英文音轨继续识别。
 
 美联储模式包含七组按片段匹配的用法提示，区分增长放缓与温和增长、通胀放缓与通缩、招聘放缓与裁员，以及基点、PCE、统计口径。通用英语模式不变，不增加翻译请求次数；提示会增加少量输入文本。本版不承诺新的延迟改善。
 
@@ -12,21 +12,21 @@
 
 ## 下载
 
-- [Windows 完整包 · 7z](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/Fed-English-Translator-0.3.3-beta-Windows-x64-Compact.7z)
-- [Mac 完整包 · Apple 芯片（M 系列）](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/Fed-English-Translator-0.3.3-beta-macOS-arm64.zip)
-- [Mac 完整包 · Intel](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/Fed-English-Translator-0.3.3-beta-macOS-x86_64.zip)
+- [Windows 完整包 · 7z](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/Fed-English-Translator-0.3.4-beta-Windows-x64-Compact.7z)
+- [Mac 完整包 · Apple 芯片（M 系列）](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/Fed-English-Translator-0.3.4-beta-macOS-arm64.zip)
+- [Mac 完整包 · Intel](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/Fed-English-Translator-0.3.4-beta-macOS-x86_64.zip)
 
-**已有 0.3.0、0.3.1 或 0.3.2 完整版：** 使用 [Windows / Mac 共用轻量更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/PhyrexNi-0.3.3-Windows-Mac-App-Update.zip)。停止组件并备份后，按包内说明合并应用文件，保留 `user-data` 与 `.runtime`，重启、刷新页面并重新加载扩展。此包不能独立运行，也不适用于 0.2.x 或个人本地版。
+**已有 0.3.0、0.3.1、0.3.2 或 0.3.3 完整版：** 使用 [Windows / Mac 共用轻量更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/PhyrexNi-0.3.4-Windows-Mac-App-Update.zip)。停止组件并备份后，按包内说明合并应用文件，保留 `user-data` 与 `.runtime`，重启、刷新页面并重新加载扩展。此包不能独立运行，也不适用于 0.2.x 或个人本地版。
 
 **已有 0.2.x 完整版：** 本轮未实际测试 0.2.x 升级，建议下载对应系统的完整包。以下 AI 更新包为旧版设计，请先备份：
 
-- [Windows x64 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/PhyrexNi-AI-0.3.3-Windows-x64-Update.zip)
-- [Mac · Apple 芯片 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/PhyrexNi-AI-0.3.3-macOS-arm64-Update.zip)
-- [Mac · Intel AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.3-beta/PhyrexNi-AI-0.3.3-macOS-x86_64-Update.zip)
+- [Windows x64 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/PhyrexNi-AI-0.3.4-Windows-x64-Update.zip)
+- [Mac · Apple 芯片 AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/PhyrexNi-AI-0.3.4-macOS-arm64-Update.zip)
+- [Mac · Intel AI 更新包](https://github.com/nisen0808-web/phyrex-english-translator/releases/download/v0.3.4-beta/PhyrexNi-AI-0.3.4-macOS-x86_64-Update.zip)
 
 更新包不能单独运行。先结束采集、运行 Stop 脚本并备份，再按包内说明合并文件，包括隐藏的 `.runtime/ai`。保留 `user-data` 和原语音组件；不熟悉文件合并时请选择完整包。
 
-[版本说明、完整附件与 SHA-256](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.3-beta) · [安装与下载页面](https://nisen0808-web.github.io/phyrex-english-translator/) · [隐私说明](docs/privacy.html)
+[版本说明、完整附件与 SHA-256](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.4-beta) · [安装与下载页面](https://nisen0808-web.github.io/phyrex-english-translator/) · [隐私说明](docs/privacy.html)
 
 首次使用请选择完整包。GitHub 自动提供的 **Source code** 不包含语音模型与本机运行组件。
 
@@ -38,7 +38,7 @@
 2. 双击 `Install-Connector.cmd`，为当前 Windows 用户安装本机连接。
 3. 在 Chrome 打开 `chrome://extensions`，或在 Edge 打开 `edge://extensions`。
 4. 打开“开发者模式”，点击“加载已解压的扩展程序”，选择包内的 **extension** 文件夹。
-5. 固定扩展，点击打开侧栏，选择 ChatGPT、Grok、Google Gemini 或 Claude API。前三项登录自己的账号；Claude 使用自己的 Anthropic Console API 密钥并单独计费。
+5. 固定扩展，点击打开侧栏，选择 ChatGPT、Grok、Google Gemini、Claude API 或 DeepSeek API。前三项登录自己的账号；Claude 和 DeepSeek 使用自己的 API 密钥并分别计费。
 6. 播放英语视频，点击“选择直播标签页，开始翻译”，选择播放页面并勾选共享标签页音频。
 
 侧栏无法共享声音时，点击“完整页面”，或运行 `Start.cmd`。翻译期间保持采集页面打开。结束时点“结束采集并保存”，等待文字处理完成后导出。用完可运行 `Stop.cmd`。
@@ -49,21 +49,21 @@
 
 1. 双击 `Install-Connector.command`，为当前用户注册本机连接。
 2. Chrome / Edge 扩展管理页开启开发者模式，加载包内的 **extension** 文件夹。
-3. 打开扩展并选择 AI 并登录自己的账号，然后选择播放英语视频的标签页并勾选共享音频。
+3. 打开扩展并选择 AI，登录自己的账号或填写 API 密钥，然后选择播放英语视频的标签页并勾选共享音频。
 4. 侧栏无法采集时，点击“完整页面”或运行 `Start.command`；用完运行 `Stop.command`。
 
 Mac 包尚未经过 Apple 公证，首次打开可能出现开发者验证提示；请参阅 [Apple 官方说明](https://support.apple.com/102445)，不要关闭系统安全防护。系统要求录屏/音频权限时，请为正在使用的浏览器授权。[详细 Mac 安装说明](mac/app/先读我-Mac.md)
 
 ## 可选显卡加速
 
-0.3.3 组件包含 `Enable-GPU.cmd`，支持 **Windows x64 + 兼容 NVIDIA 显卡**。仍在使用 0.3.0 的用户请先安装上面的轻量更新包；只有浏览器扩展不能启用 GPU。
+0.3.4 组件包含 `Enable-GPU.cmd`，支持 **Windows x64 + 兼容 NVIDIA 显卡**。仍在使用 0.3.0 的用户请先安装上面的轻量更新包；只有浏览器扩展不能启用 GPU。
 
 1. 结束采集并等待保存，运行 `Stop.cmd`。
 2. 双击组件文件夹里的 `Enable-GPU.cmd`。安装器先检测显卡，不兼容时不会下载。
 3. 首次需要下载约 **1.1 GB** NVIDIA 加速库，并保留至少 **4 GB** 可用空间。只放在本工具目录，不安装或修改系统驱动。
 4. 完成后运行 `Start.cmd`，确认页面显示“**本地语音识别已就绪 · 显卡加速**”。
 
-加速库按需下载，不放进主分发包。GPU 加速本地英语识别，对三个 AI 的识别阶段均适用；AI 翻译仍使用自己的账号，不增加付费 API。依赖缺失、显卡不可用或运行异常时回退 CPU。
+加速库按需下载，不放进主分发包。GPU 加速本地英语识别；AI 翻译仍使用所选服务，Claude 和 DeepSeek 的 API 请求可能产生费用。依赖缺失、显卡不可用或运行异常时回退 CPU。
 
 当前 Mac（包括 M 系列）、AMD 和 Intel 显卡仍使用 CPU；尚未提供 Metal、AMD 或 Intel GPU 后端。CPU 模式不需要下载显卡组件。个人 RTX 4070 的测试速度不代表其他电脑或 AI 服务的速度。
 
@@ -84,13 +84,13 @@ Mac 包尚未经过 Apple 公证，首次打开可能出现开发者验证提示
 - 每段有独立复制图标；带“待核实”的段落也能复制，只复制正文。
 - 中文记录自动保存在本机，支持 TXT、Word 和 SRT 导出。
 - 可选中文朗读、声音与语速选择、暂停及跳过；朗读时屏蔽英文外放。
-- 声音在本机识别；英文、短上下文和相关术语发给所选 AI 服务。Claude API 使用自己的密钥，按 API 额度或账单单独计费。
+- 声音在本机识别；英文、短上下文和相关术语发给所选 AI 服务。Claude API 和 DeepSeek API 使用各自的密钥，按 API 额度或账单单独计费。
 
 ## 测试范围
 
-这是 GitHub 公开测试版，尚未上架 Chrome / Edge 商店。需要浏览器扩展配合本机组件。ChatGPT 需要 Codex 权限，Grok 需要 Grok Build 权限；Gemini 使用 Google 登录；Claude API 需要用户自己的 Anthropic Console API 密钥，与 Claude 网页订阅分开计费。各家额度及可用模型以账号为准，不自动切换 AI。[AI 选择与账号说明](AI_PROVIDERS.md)
+这是 GitHub 公开测试版，尚未上架 Chrome / Edge 商店。需要浏览器扩展配合本机组件。ChatGPT 需要 Codex 权限，Grok 需要 Grok Build 权限；Gemini 使用 Google 登录；Claude 和 DeepSeek 分别需要用户自己的 API 密钥并按各自 API 用量计费。各家额度及可用模型以账号为准，不自动切换 AI。[AI 选择与账号说明](AI_PROVIDERS.md)
 
-三个系统完整包须通过原生组件、账号目录隔离、本机服务、重新解压及离线回归检查。Claude 对最终修订版的独立复核因额度或请求频率受限未完成。Claude API 测试使用模拟响应，不调用真实模型；真实 Claude API 密钥、账单和译文及 Grok/Google 账号授权尚未实测。真实 YouTube 长时间直播、Mac 浏览器朗读和物理扬声器效果仍需试用。检查报告和 SHA-256 随版本附件提供。
+发布前须完成三个系统的原生构建、组件运行、重新解压及离线回归检查。DeepSeek 和 Claude API 测试使用模拟响应，不调用真实模型；真实 DeepSeek API 密钥、账单、译文和速度尚未实测。真实 YouTube 长时间直播、Mac 浏览器朗读和物理扬声器效果仍需试用。具体报告和 SHA-256 以实际版本附件为准。
 
 数字、否定语气和专有名词出现“待核实”时，请结合原音判断。[完整验证范围](VERIFICATION.md)
 
@@ -108,4 +108,4 @@ Mac 包尚未经过 Apple 公证，首次打开可能出现开发者验证提示
 
 Windows 先运行 `Stop.cmd`，再运行 `Uninstall-Connector.cmd`；Mac 对应为 `Stop.command` 和 `Uninstall-Connector.command`。卸载连接注册后，账号和记录仍保留，由用户自行管理。转发时请使用 Releases 中的原始干净压缩包。
 
-第三方组件及许可随完整包保留，见 [第三方说明](THIRD_PARTY_NOTICES.md)。本工具由 @PhyrexNi 发布，与 YouTube、Google、Microsoft、OpenAI、xAI 及美联储无官方隶属或认可关系。
+第三方组件及许可随完整包保留，见 [第三方说明](THIRD_PARTY_NOTICES.md)。本工具由 @PhyrexNi 发布，与 YouTube、Google、Microsoft、OpenAI、xAI、Anthropic、DeepSeek 及美联储无官方隶属或认可关系。

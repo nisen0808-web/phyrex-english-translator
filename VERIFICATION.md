@@ -1,3 +1,15 @@
+# 0.3.4-beta 发布验证 · 2026-10-27
+
+新增可选 DeepSeek API，使用者自行提供 API 密钥并承担 API 用量费用；切换 AI 或关闭组件会清除密钥。发布前须完成 Windows、两种 Mac 的原生构建、重新解压和离线回归检查，具体结果与 SHA-256 以版本附件为准。
+
+DeepSeek 与 Claude 的 API 测试采用模拟响应；真实 DeepSeek API 密钥、账单、模型译文和速度尚未实测。真实 YouTube 长时间直播和 Mac 浏览器物理朗读尚未实测；测试不保证翻译准确率或固定延迟。未新增杀毒认证，Mac 未经过 Apple 公证。
+
+轻量包适用于已安装 0.3.0、0.3.1、0.3.2 或 0.3.3 的外部版；应先停止组件并备份，按包内说明保留 user-data 和 .runtime。0.2.x 升级未做本轮实测，建议使用完整包。
+
+以下为旧版本验证记录，不代表本轮结果。
+
+---
+
 # 0.3.3-beta 发布验证 · 2026-10-27
 
 三个平台必须通过原生组件、本机服务、重新解压及离线回归检查，具体报告和 SHA-256 见 [0.3.3-beta 附件](https://github.com/nisen0808-web/phyrex-english-translator/releases/tag/v0.3.3-beta)。Claude 对最终修订版的独立复核因额度或请求频率受限未完成。Claude API 测试使用模拟响应，不调用真实账号或模型；真实 Claude API 密钥、账单和译文，以及 Grok/Google 真实账号、长时间 YouTube 直播、Mac 浏览器物理朗读均未完成本轮实测。未新增杀毒认证，Mac 未经过 Apple 公证。
